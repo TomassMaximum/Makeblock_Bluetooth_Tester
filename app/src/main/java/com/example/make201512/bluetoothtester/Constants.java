@@ -3,7 +3,7 @@ package com.example.make201512.bluetoothtester;
 import java.util.UUID;
 
 /**
- * Created by make201512 on 2016/4/21.
+ * Created by Tom on 2016/4/21.
  */
 public class Constants {
 

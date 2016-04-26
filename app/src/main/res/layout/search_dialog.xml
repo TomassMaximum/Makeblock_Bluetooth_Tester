@@ -3,10 +3,10 @@
     xmlns:wheel="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:padding="16dp">
+    android:layout_height="wrap_content">
 
     <TextView
+        android:paddingTop="16dp"
         android:layout_alignParentTop="true"
         android:layout_centerHorizontal="true"
         android:id="@+id/start_search"
@@ -16,11 +16,11 @@
         android:layout_height="wrap_content" />
 
     <com.pnikosis.materialishprogress.ProgressWheel
+        android:layout_marginTop="16dp"
         android:layout_marginLeft="20dp"
         android:layout_marginStart="20dp"
         android:layout_toEndOf="@+id/start_search"
         android:layout_toRightOf="@+id/start_search"
-        android:layout_alignParentTop="true"
         android:id="@+id/progress_wheel"
         android:layout_width="30dp"
         android:layout_height="30dp"
@@ -28,15 +28,11 @@
         wheel:matProg_progressIndeterminate="true" />
 
     <ListView
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="16dp"
         android:layout_below="@+id/start_search"
         android:id="@+id/list_view"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"/>
-
-    <!--<android.support.v7.widget.RecyclerView-->
-        <!--android:layout_above="@+id/start_search"-->
-        <!--android:id="@+id/recycler_view"-->
-        <!--android:layout_width="wrap_content"-->
-        <!--android:layout_height="wrap_content" />-->
 
 </RelativeLayout>

@@ -7,6 +7,7 @@ import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -167,14 +168,19 @@ public class SearchDevicesDialog extends MaterialDialog {
                 //利用反射获取到配对方法（createBond）。四号坑。
             }else {
                 Log.e(TAG,"设备未配对，进行配对操作");
-                Method method;
-                try {
-                    method = mDevice.getClass().getMethod("createBond", (Class[]) null);
-                    method.invoke(mDevice, (Object[]) null);
+                //如果SDK版本在19以上，则直接调用系统API，19以下使用反射来进行主动配对。
+                if (Build.VERSION.SDK_INT >= 19){
+                    mDevice.createBond();
+                }else {
+                    Method method;
+                    try {
+                        method = mDevice.getClass().getMethod("createBond", (Class[]) null);
+                        method.invoke(mDevice, (Object[]) null);
 
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Log.e(TAG,"绑定异常");
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        Log.e(TAG,"绑定异常");
+                    }
                 }
             }
         }
@@ -182,22 +188,29 @@ public class SearchDevicesDialog extends MaterialDialog {
         //设置PIN码的方法，来自小明在mbot中写的代码
         public void setBluetoothPairingPin(BluetoothDevice device){
             byte[] pinBytes = ("0000").getBytes();
-            try {
-                Log.e(TAG, "Try to set the PIN");
-                Method m = device.getClass().getMethod("setPin", byte[].class);
-
-                m.invoke(device, pinBytes);
-                Log.e(TAG, "Success to add the PIN.");
+            if (Build.VERSION.SDK_INT >= 19){
+                device.setPin(pinBytes);
+                device.setPairingConfirmation(true);
+            }else {
                 try {
-                    device.getClass().getMethod("setPairingConfirmation", boolean.class).invoke(device, true);
-                    Log.e(TAG, "Success to setPairingConfirmation.");
+                    Log.e(TAG, "Try to set the PIN");
+
+                    Method m = device.getClass().getMethod("setPin", byte[].class);
+
+                    m.invoke(device, pinBytes);
+                    Log.e(TAG, "Success to add the PIN.");
+
+                    try {
+                        device.getClass().getMethod("setPairingConfirmation", boolean.class).invoke(device, true);
+                        Log.e(TAG, "Success to setPairingConfirmation.");
+                    } catch (Exception e) {
+                        Log.e(TAG,"设置配对信息失败");
+                        e.printStackTrace();
+                    }
                 } catch (Exception e) {
-                    Log.e(TAG,"设置配对信息失败");
                     e.printStackTrace();
+                    Log.e(TAG,"获取setPin方法错误");
                 }
-            } catch (Exception e) {
-                e.printStackTrace();
-                Log.e(TAG,"获取setPin方法错误");
             }
         }
     }

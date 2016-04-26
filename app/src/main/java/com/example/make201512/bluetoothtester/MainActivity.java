@@ -3,6 +3,7 @@ package com.example.make201512.bluetoothtester;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothSocket;
 import android.content.Intent;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.support.design.widget.Snackbar;
@@ -21,6 +22,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 
+/**
+ * 作者：小龟
+ * 版本：v1.0.0
+ * 当前支持测试蓝牙2.0的连接稳定性
+ * */
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     //Debug TAG
@@ -80,6 +86,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
         }
+
+        Toast.makeText(MainActivity.this, "系统版本为：" + Build.VERSION.SDK_INT, Toast.LENGTH_SHORT).show();
     }
 
     //接收系统打开蓝牙的结果
