@@ -1,0 +1,31 @@
+<resources>
+    <string name="app_name">BlueToothTester</string>
+
+    <string name="log_info">04-16 17:18:23.206 8610-8610/? I/EntSec: [PFM   ] [PFM_main   ] "PFM has started"
+04-16 17:18:23.206 8610-8610/? I/EntSec: [PFM   ] [PFMCreator ] "PFMCreator::create"
+04-16 17:18:23.206 8610-8610/? E/EntSec: [PFM   ] [PFMCreator ] "Failed to check if configuration directory exists, error is Permission denied! Exiting!"
+04-16 17:18:23.206 8610-8610/? E/EntSec: [PFM   ] [PFM_main   ] "Could not create PF Manager"
+04-16 17:18:23.206 8610-8610/? I/EntSec: [PFECommon] [PFECommPipes] "Disconnect succeeded. FIFOs are closed"
+04-16 17:18:23.321 21601-21601/? I/wpa_supplicant: TDLS: Invalid frame - payloadtype=102 category=0 action=0
+04-16 17:18:25.263 9043-9081/? D/HeadsetStateMachine: Disconnected process message: 10, size: 0
+04-16 17:18:25.265 15581-15581/? D/AbstractProcessor: onBatteryChange Percent:31 State:2
+04-16 17:18:25.298 538-538/? D/charger_monitor: vchg_loop stable: 1, is_settled = 0,usb_target_ua = 0, usbin_current_now = 100000,fastchg_sts = 1, num_attempts = 0
+04-16 17:18:26.329 1263-1263/? D/TelephonyIcons: updateDataType sub=0, type=13, inetCondition=1 showAtLeast3G=false show4GforLte=true hspaDistinguishable=false
+04-16 17:18:26.332 9043-9043/? D/HeadsetPhoneState: sendDeviceStateChanged. mService=1 mSignal=3 mRoam=0 mBatteryCharge=1
+04-16 17:18:26.333 9043-9081/? D/HeadsetStateMachine: Disconnected process message: 11, size: 0
+04-16 17:18:26.336 1263-1263/? D/TelephonyIcons: getSignalStrengthIcon: sub=0, inetCondition=1, level=3 isRoaming=false
+04-16 17:18:26.343 1263-1263/? D/TelephonyIcons: updateDataType sub=0, type=13, inetCondition=1 showAtLeast3G=false show4GforLte=true hspaDistinguishable=false
+04-16 17:18:26.345 1263-1263/? D/TelephonyIcons: getSignalStrengthIcon: sub=0, inetCondition=1, level=3 isRoaming=false
+04-16 17:18:27.229 8614-8614/? W/pfm: type=1400 audit(0.0:75310): avc: denied { read } for name="pfm" dev="mmcblk0p28" ino=262202 scontext=u:r:pfm:s0 tcontext=u:object_r:system_data_file:s0 tclass=dir
+04-16 17:18:27.237 8614-8614/? I/EntSec: [PFM   ] [PFM_main   ] "PFM has started"
+04-16 17:18:27.237 8614-8614/? I/EntSec: [PFM   ] [PFMCreator ] "PFMCreator::create"
+04-16 17:18:27.238 8614-8614/? E/EntSec: [PFM   ] [PFMCreator ] "Failed to check if configuration directory exists, error is Permission denied! Exiting!"
+04-16 17:18:27.238 8614-8614/? E/EntSec: [PFM   ] [PFM_main   ] "Could not create PF Manager"
+04-16 17:18:27.238 8614-8614/? I/EntSec: [PFECommon] [PFECommPipes] "Disconnect succeeded. FIFOs are closed"
+04-16 17:18:28.269 8616-8616/? W/ml_daemon: type=1400 audit(0.0:75311): avc: denied { dac_override } for capability=1 scontext=u:r:ml_daemon:s0 tcontext=u:r:ml_daemon:s0 tclass=capability
+04-16 17:18:28.272 8615-8615/? D/EntSec: [ML_DMN] [Main       ] "ML daemon process entry PPID = 1"
+04-16 17:18:28.273 8615-8615/? D/EntSec: [ML_DMN] [Main       ] "Parent ML daemon process paused!! "
+04-16 17:18:28.274 8616-8616/? D/EntSec: [ML_DMN] [Main       ] "measurement listener service threads starting!!! "
+04-16 17:18:28.274 8616-8616/? I/EntSec: [ML_DMN] [Listener   ] "ml_start"
+04-16 17:18:28.274 8616-8616/? D/QSEECOMAPI:: QSEECom_register_listener 20480 sb_length = 0x1400</string>
+</resources>
