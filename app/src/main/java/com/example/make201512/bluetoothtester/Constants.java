@@ -19,7 +19,19 @@ public class Constants {
 
     public static final int UPDATE_PACKAGES_NOT_BACK = 3;
 
-    public static final int UPDATE_BLUETOOTH_DEVICE_NAME = 4;
+    public static final int UPDATE_BLUETOOTH_DEVICE_NAME_AND_COUNTS = 4;
+
+    public static final int UPDATE_BLUETOOTH_DEVICES_LIST = 5;
+
+    public static final int SCAN_DEVICES_FINISHED = 6;
+
+    public static final int SCAN_DEVICE_FOUND = 7;
+
+    public static final int SCAN_START = 8;
+
+    public static final int CONNECT_STATE_CHANGED = 9;
+
+    public static boolean IS_BLE_STATE = false;
 
     public static boolean shouldStopSendingData = false;
 

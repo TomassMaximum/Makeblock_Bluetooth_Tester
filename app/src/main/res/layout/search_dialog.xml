@@ -28,7 +28,6 @@
         wheel:matProg_progressIndeterminate="true" />
 
     <ListView
-        android:layout_marginTop="16dp"
         android:layout_marginBottom="16dp"
         android:layout_below="@+id/start_search"
         android:id="@+id/list_view"

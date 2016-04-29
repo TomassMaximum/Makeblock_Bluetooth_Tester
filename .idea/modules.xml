@@ -4,6 +4,7 @@
     <modules>
       <module fileurl="file://$PROJECT_DIR$/BlueToothTester.iml" filepath="$PROJECT_DIR$/BlueToothTester.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
+      <module fileurl="file://$PROJECT_DIR$/bluetoothconnector/bluetoothconnector.iml" filepath="$PROJECT_DIR$/bluetoothconnector/bluetoothconnector.iml" />
     </modules>
   </component>
 </project>

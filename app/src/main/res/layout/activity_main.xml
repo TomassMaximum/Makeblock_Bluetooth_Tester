@@ -243,9 +243,30 @@
                     <Button
                         android:textColor="@android:color/white"
                         android:background="@color/colorAccent"
-                        android:id="@+id/button_connect"
+                        android:id="@+id/button_connect_classic"
                         android:textSize="18sp"
-                        android:text="搜索"
+                        android:text="搜索2.0"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
+
+                </com.andexert.library.RippleView>
+
+                <com.andexert.library.RippleView
+                    android:layout_gravity="center_horizontal"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    xmlns:android="http://schemas.android.com/apk/res/android"
+                    xmlns:app="http://schemas.android.com/apk/res-auto"
+                    app:rv_color="@android:color/white">
+
+                    <Button
+                        android:layout_marginLeft="20dp"
+                        android:layout_marginStart="20dp"
+                        android:textColor="@android:color/white"
+                        android:background="@color/colorAccent"
+                        android:id="@+id/button_connect_le"
+                        android:textSize="18sp"
+                        android:text="搜索4.0"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
 
