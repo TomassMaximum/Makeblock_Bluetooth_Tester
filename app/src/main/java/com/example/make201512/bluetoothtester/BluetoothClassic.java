@@ -70,9 +70,11 @@ public class BluetoothClassic {
     }
 
     public void scanClassic(){
+        deviceIndex = 0;
         mBluetoothAdapter.cancelDiscovery();
 
         mBluetoothAdapter.startDiscovery();
+        Log.e(TAG,"开始搜索被执行");
     }
 
     public void connectDevice(int index){
@@ -89,15 +91,16 @@ public class BluetoothClassic {
         EventBus.getDefault().post(new MessageEvent(message));
 
         new ConnectThread(selectedDevice).start();
+        Log.e(TAG,"搜索线程已创建");
 
     }
 
     public void sendPackages(int frequency){
-        if (connectedThread == null){
-            connectedThread = new ConnectedThread(socket);
-        }
+        connectedThread = new ConnectedThread(socket);
         connectedThread.start();
+
         connectedThread.write(frequency);
+        Log.e(TAG,"sendPackages被执行");
     }
 
     public void resetCounts(){
@@ -108,7 +111,10 @@ public class BluetoothClassic {
     }
 
     public void disconnect(){
-        connectedThread.cancel();
+        if (connectedThread != null){
+            connectedThread.cancel();
+        }
+        connectedThread = null;
     }
 
     public void registerBroadcast(){
@@ -232,6 +238,7 @@ public class BluetoothClassic {
             try {
                 //使用UUID从服务端蓝牙设备获取到Socket
                 tmpSocket = mDevice.createRfcommSocketToServiceRecord(Constants.MY_UUID);
+                Log.e(TAG,"临时Socket获取成功");
             } catch (IOException e) {
                 e.printStackTrace();
                 Log.e(TAG,"不能获取到BluetoothSocket");
@@ -239,6 +246,7 @@ public class BluetoothClassic {
 
             //赋值给本地的Socket
             mSocket = tmpSocket;
+            Log.e(TAG,"mSocket赋值成功");
         }
 
         @Override
@@ -253,9 +261,13 @@ public class BluetoothClassic {
                     Log.e(TAG,"Socket连接异常");
                 }
 
-                Log.e(TAG,"Socket已连接");
                 Constants.CONNECTSTATE = true;
                 socket = mSocket;
+                Log.e(TAG,"Socket赋值成功已连接");
+
+                if (connectedThread == null){
+                    connectedThread = new ConnectedThread(socket);
+                }
 
                 //如果当前蓝牙设备未配对，要手动进行配对工作。
                 //利用反射获取到配对方法（createBond）。四号坑。
@@ -395,9 +407,11 @@ public class BluetoothClassic {
         }
 
         public void cancel(){
+            Log.e(TAG,"Cancel被执行到");
             if (inputStream != null){
                 try {
                     inputStream.close();
+                    Log.e(TAG,"InputStream关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
                     Log.e(TAG,"无法关闭输入流");
@@ -406,6 +420,7 @@ public class BluetoothClassic {
             if (outputStream != null){
                 try {
                     outputStream.close();
+                    Log.e(TAG,"OutputStream关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
                     Log.e(TAG,"无法关闭输出流");
@@ -414,11 +429,22 @@ public class BluetoothClassic {
             if (mSocket != null){
                 try {
                     mSocket.close();
+                    Log.e(TAG,"mSocket关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
                     Log.e(TAG,"无法关闭Socket");
                 }
             }
+            if (socket != null){
+                try {
+                    socket.close();
+                    Log.e(TAG,"socket关闭成功");
+                } catch (IOException e) {
+                    e.printStackTrace();
+                    Log.e(TAG,"无法关闭Socket");
+                }
+            }
+            Constants.CONNECTSTATE = false;
         }
     }
 
@@ -469,7 +495,8 @@ public class BluetoothClassic {
     }
 
     public void unRegisterBroadcastReceiver(){
-        mContext.unregisterReceiver(mBroadcastReceiver);
+        if (mBroadcastReceiver != null){
+            mContext.unregisterReceiver(mBroadcastReceiver);
+        }
     }
-
 }

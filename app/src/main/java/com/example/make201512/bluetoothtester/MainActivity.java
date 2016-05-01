@@ -35,6 +35,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     TextView dataSentSuccessCounts;
     TextView dataSentWrongCounts;
     TextView dataNotBackCounts;
+    TextView connectVersion;
 
     EditText dataSentFrequency;
     int frequency;
@@ -52,6 +53,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     BluetoothAdapter bluetoothAdapter;
 
     BluetoothClassic mBluetoothClassic;
+
+    BluetoothLE mBluetoothLE;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -104,35 +107,55 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.button_connect_classic:{
-                if (Constants.CONNECTSTATE){
-                    Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
-                }else {
-                    Constants.IS_BLE_STATE = false;
-                    //当搜索按钮被点击时，弹出搜索对话框进行搜索和连接操作
-                    SearchDevicesDialog dialog = new SearchDevicesDialog(new MaterialDialog.Builder(this).customView(R.layout.search_dialog, false));
-
-                    //显示对话框
-                    dialog.show();
-                }
-                break;
-            }
-
-            case R.id.button_connect_le:{
-                //判断当前设备是否支持BLE
-                if (Build.VERSION.SDK_INT >= 18){
-                    if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)){
-                        Constants.IS_BLE_STATE = true;
+                if (bluetoothAdapter.isEnabled()){
+                    if (Constants.CONNECTSTATE){
+                        Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
+                    }else {
+                        mBluetoothClassic = BluetoothClassic.getInstance(this);
+                        Constants.IS_BLE_STATE = false;
                         //当搜索按钮被点击时，弹出搜索对话框进行搜索和连接操作
                         SearchDevicesDialog dialog = new SearchDevicesDialog(new MaterialDialog.Builder(this).customView(R.layout.search_dialog, false));
 
                         //显示对话框
                         dialog.show();
-                    }else {
-                        Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
                     }
                 }else {
-                    Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(v,"请先打开蓝牙",Snackbar.LENGTH_SHORT).show();
+                    Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
                 }
+
+                break;
+            }
+
+            case R.id.button_connect_le:{
+                if (bluetoothAdapter.isEnabled()){
+                    if (Constants.CONNECTSTATE){
+                        Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
+                    }else {
+                        mBluetoothLE = BluetoothLE.getInstance(this);
+                        //判断当前设备是否支持BLE
+                        if (Build.VERSION.SDK_INT >= 18){
+                            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)){
+                                Constants.IS_BLE_STATE = true;
+                                //当搜索按钮被点击时，弹出搜索对话框进行搜索和连接操作
+                                SearchDevicesDialog dialog = new SearchDevicesDialog(new MaterialDialog.Builder(this).customView(R.layout.search_dialog, false));
+
+                                //显示对话框
+                                dialog.show();
+                            }else {
+                                Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
+                            }
+                        }else {
+                            Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
+                        }
+                    }
+                }else {
+                    Snackbar.make(v,"请先打开蓝牙",Snackbar.LENGTH_SHORT).show();
+                    Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+                    startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
+                }
+
                 break;
             }
 
@@ -144,6 +167,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
                     //获取到用户输入的发包频率
                     if (!dataSentFrequency.getText().toString().equals("")){
+                        Constants.shouldStopSendingData = false;
                         String enteredNum = dataSentFrequency.getText().toString();
 
                         Log.e(TAG,"用户输入为：" + enteredNum);
@@ -182,8 +206,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     dataSentSuccessCounts.setText("0");
                     dataSentWrongCounts.setText("0");
                     dataNotBackCounts.setText("0");
-                    blueToothName.setText("无");
-                    blueToothCounts.setText("0");
+                    blueToothName.setText("未连接");
+                    connectVersion.setText("未连接");
                     Constants.shouldStopSendingData = true;
                     Constants.CONNECTSTATE = false;
                     disconnect();
@@ -230,6 +254,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 String deviceName = (String) message.obj;
                 blueToothName.setText(deviceName);
                 blueToothCounts.setText(Constants.CURRENT_DEVICES_COUNT + "");
+                if (Constants.IS_BLE_STATE){
+                    connectVersion.setText("蓝牙4.0");
+                }else {
+                    connectVersion.setText("蓝牙2.0");
+                }
                 break;
             }
         }
@@ -240,6 +269,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         dataSentSuccessCounts = (TextView) findViewById(R.id.data_sent_success);
         dataSentWrongCounts = (TextView) findViewById(R.id.data_sent_wrong);
         dataNotBackCounts = (TextView) findViewById(R.id.data_sent_not_back);
+        connectVersion = (TextView) findViewById(R.id.connect_version);
 
         dataSentFrequency = (EditText) findViewById(R.id.data_sent_time);
 
@@ -262,8 +292,6 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         dataSentFrequency.setText("50");
         dataSentFrequency.setSelection(dataSentFrequency.length());
-
-        mBluetoothClassic = BluetoothClassic.getInstance(this);
     }
 
     public void sendPackages(int frequency){
@@ -275,7 +303,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void disconnect(){
-        mBluetoothClassic.disconnect();
+        if (Constants.IS_BLE_STATE){
+            mBluetoothLE.disconnect();
+        }else {
+            mBluetoothClassic.disconnect();
+        }
     }
 
     @Override

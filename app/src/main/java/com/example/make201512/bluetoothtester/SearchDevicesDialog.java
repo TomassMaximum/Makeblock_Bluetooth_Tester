@@ -2,6 +2,7 @@ package com.example.make201512.bluetoothtester;
 
 import android.os.Bundle;
 import android.os.Message;
+import android.util.Log;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
@@ -52,7 +53,7 @@ public class SearchDevicesDialog extends MaterialDialog {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        //初始化Views，找到Views并创建IntentFilter用于接受各类广播
+        //初始化Views，获取到相应的蓝牙适配器
         init();
 
         //开始搜索
@@ -72,6 +73,7 @@ public class SearchDevicesDialog extends MaterialDialog {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             connectDevice(position);
+            dismiss();
         }
     }
 
@@ -163,8 +165,7 @@ public class SearchDevicesDialog extends MaterialDialog {
                 break;
             }
             case Constants.CONNECT_STATE_CHANGED:{
-                //连接设备成功，对话框自动关闭
-                dismiss();
+                //连接设备成功
                 break;
             }
         }
@@ -175,20 +176,24 @@ public class SearchDevicesDialog extends MaterialDialog {
     public void onDetachedFromWindow() {
         super.onDetachedFromWindow();
         EventBus.getDefault().unregister(this);
-        unRegisterBroadcastReceiver();
+        if (!Constants.IS_BLE_STATE){
+            unRegisterBroadcastReceiver();
+        }
     }
 
     public void scanDevices(){
         if (Constants.IS_BLE_STATE){
             mBluetoothLE.scanLE(true);
         }else {
+            Log.e(TAG,"对话框的scanClassic被执行到");
             mBluetoothClassic.scanClassic();
+            mBluetoothClassic.registerBroadcast();
         }
     }
 
     public void connectDevice(int index){
         if (Constants.IS_BLE_STATE){
-
+            mBluetoothLE.connect(index);
         }else {
             mBluetoothClassic.connectDevice(index);
         }
@@ -197,5 +202,4 @@ public class SearchDevicesDialog extends MaterialDialog {
     public void unRegisterBroadcastReceiver(){
         mBluetoothClassic.unRegisterBroadcastReceiver();
     }
-
 }
