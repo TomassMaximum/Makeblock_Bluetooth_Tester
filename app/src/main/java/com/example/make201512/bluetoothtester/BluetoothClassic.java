@@ -136,6 +136,9 @@ public class BluetoothClassic {
 
         intentFilter = new IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED);
         mContext.registerReceiver(mBroadcastReceiver,intentFilter);
+
+        intentFilter = new IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED);
+        mContext.registerReceiver(mBroadcastReceiver,intentFilter);
     }
 
     private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
@@ -149,7 +152,8 @@ public class BluetoothClassic {
                     break;
                 }
                 case BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED:{
-                    Log.e(TAG,"连接状态改变");
+
+                    Log.e(TAG,"连接状态改变" + mBluetoothAdapter.getState());
                     break;
                 }
                 case BluetoothDevice.ACTION_ACL_CONNECTED:{
@@ -199,8 +203,10 @@ public class BluetoothClassic {
                     break;
                 }
                 case BluetoothDevice.ACTION_BOND_STATE_CHANGED:{
-                    Log.e(TAG,"设备配对状态改变");
 
+                    connectDevice(deviceIndex);
+
+                    Log.e(TAG,"设备配对状态改变");
                     break;
                 }
             }
@@ -384,6 +390,7 @@ public class BluetoothClassic {
                 } catch (IOException e) {
                     e.printStackTrace();
                     Log.e(TAG,"字节读取异常");
+                    break;
                 }
             }
         }
@@ -463,13 +470,14 @@ public class BluetoothClassic {
                 //循环发包，根据用户设定的间隔时间进行发包操作
                 while (true){
                     if (!Constants.shouldStopSendingData){
-                        for (int i = 0;i < Constants.TEST_DATA.length;i++){
-                            outputStream.write(Constants.TEST_DATA[i]);
+                        for (int i = 0;i < Constants.MCORE_TEST_DATA.length;i++){
+                            outputStream.write(Constants.MCORE_TEST_DATA[i]);
                         }
                     }else {
                         break;
                     }
-                    Log.e(TAG,"一条消息已发送完毕");
+                    String string = new String(Constants.MCORE_TEST_DATA);
+                    Log.e(TAG,"一条消息已发送完毕" + string);
 
                     //已发的数据包数量自增
                     packagesSent++;

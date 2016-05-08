@@ -31,6 +31,8 @@ public class Constants {
 
     public static final int CONNECT_STATE_CHANGED = 9;
 
+    public static final int DEVICE_DISCONNECTED = 10;
+
     public static boolean IS_BLE_STATE = false;
 
     public static boolean shouldStopSendingData = false;

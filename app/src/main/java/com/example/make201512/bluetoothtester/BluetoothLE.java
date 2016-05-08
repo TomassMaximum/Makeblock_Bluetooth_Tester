@@ -18,6 +18,7 @@ import android.util.Log;
 
 import org.greenrobot.eventbus.EventBus;
 
+import java.io.UnsupportedEncodingException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -155,35 +156,55 @@ public class BluetoothLE {
 //            Log.e(TAG,"STR为：" + str);
 //            byte[] msg = str.getBytes();
 
-            byte[] bs = new byte[Constants.MCORE_TEST_DATA.length];
-            for (int i = 0;i < Constants.MCORE_TEST_DATA.length;i++){
-                byte b = (byte) Constants.MCORE_TEST_DATA[i];
-                bs[i] = b;
+//            byte[] bs = new byte[Constants.MCORE_TEST_DATA.length];
+//            for (int i = 0;i < Constants.MCORE_TEST_DATA.length;i++){
+//                byte b = (byte) Constants.MCORE_TEST_DATA[i];
+//
+////                bs[i] = b;
+//            }
+
+            String data = new String(Constants.MCORE_TEST_DATA);
+
+            byte[] bytes = null;
+            try {
+                bytes = data.getBytes("UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                e.printStackTrace();
+                Log.e(TAG,"字符转换异常");
             }
 
+            characteristic.setValue(bytes);
+            Log.e(TAG,"发出的字符串为：" + data);
+            boolean flag = bluetoothGatt.writeCharacteristic(characteristic);
+
+            if (flag){
+                Log.e(TAG,"写入数据成功");
+            }else {
+                Log.e(TAG,"写入数据失败");
+            }
 
             //写入数据后mbot没有响应。
 //            while (true){
 //                characteristic.setValue(bs);
-            BluetoothGattDescriptor descriptor = new BluetoothGattDescriptor(Constants.MY_UUID,10);
-            descriptor.setValue(bs);
-                byte[] info = descriptor.getValue();
-                String s = new String(info);
-                Log.e(TAG,"默认信息为：" + s);
-
-            characteristic.addDescriptor(descriptor);
-                boolean flag = mBluetoothGatt.writeCharacteristic(characteristic);
-                if (flag){
-                    Log.e(TAG,"写入成功");
-                }else {
-                    Log.e(TAG,"写入失败");
-                }
-                try {
-                    sleep(frequency);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    Log.e(TAG,"线程sleep异常");
-                }
+//            BluetoothGattDescriptor descriptor = new BluetoothGattDescriptor(Constants.MY_UUID,10);
+//            descriptor.setValue(bs);
+//                byte[] info = descriptor.getValue();
+//                String s = new String(info);
+//                Log.e(TAG,"默认信息为：" + s);
+//
+//            characteristic.addDescriptor(descriptor);
+//                boolean flag = mBluetoothGatt.writeCharacteristic(characteristic);
+//                if (flag){
+//                    Log.e(TAG,"写入成功");
+//                }else {
+//                    Log.e(TAG,"写入失败");
+//                }
+//                try {
+//                    sleep(frequency);
+//                } catch (InterruptedException e) {
+//                    e.printStackTrace();
+//                    Log.e(TAG,"线程sleep异常");
+//                }
 //            }
         }
     }
