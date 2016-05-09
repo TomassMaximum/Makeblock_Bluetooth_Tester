@@ -60,4 +60,6 @@ public class Constants {
     //可用Characteristic的UUID
     public static final UUID CHARACTERISTIC_UUID = UUID.fromString("00002a00-0000-1000-8000-00805f9b34fb");
 
+    private final static String UUID_KEY_DATA = "0000ffe1-0000-1000-8000-00805f9b34fb";
+
 }

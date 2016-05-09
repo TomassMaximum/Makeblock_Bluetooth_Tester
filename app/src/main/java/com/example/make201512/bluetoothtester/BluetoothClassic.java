@@ -184,7 +184,7 @@ public class BluetoothClassic {
                     //将获取到的蓝牙设备的名称和MAC地址添加到ListView中显示
                     String deviceInfo = deviceName + "\n" + deviceAddress;
 
-                    if (!devices.containsValue(deviceInfo) && deviceName.equals("Makeblock")) {
+                    if (!devices.containsValue(deviceInfo)) {
                         Log.e(TAG,"搜索到设备" + deviceIndex +" ，添加到列表");
 
                         //将获取到的设备按角标顺序存入Map集合中
@@ -476,7 +476,7 @@ public class BluetoothClassic {
                     }else {
                         break;
                     }
-                    String string = new String(Constants.MCORE_TEST_DATA);
+                    String string = new String(Constants.TEST_DATA);
                     Log.e(TAG,"一条消息已发送完毕" + string);
 
                     //已发的数据包数量自增
