@@ -1,17 +1,28 @@
 package com.example.make201512.bluetoothtester;
 
+import android.app.Fragment;
+import android.app.FragmentTransaction;
 import android.bluetooth.BluetoothAdapter;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Message;
+import android.support.annotation.Nullable;
 import android.support.design.widget.Snackbar;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.support.v7.widget.LinearLayoutManager;
+import android.support.v7.widget.RecyclerView;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ListView;
+import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -20,6 +31,9 @@ import com.afollestad.materialdialogs.MaterialDialog;
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
 import org.greenrobot.eventbus.ThreadMode;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 作者：小龟
@@ -56,6 +70,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     BluetoothLE mBluetoothLE;
 
+    ResultFragment resultFragment;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,6 +79,8 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
         //初始化Activity
         init();
+
+        resultFragment = new ResultFragment();
 
         EventBus.getDefault().register(this);
 
@@ -177,6 +195,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                         //使用用户设置的频率发包
                         sendPackages(frequency);
                         Log.e(TAG,"消息已发送");
+
+                        if (!resultFragment.isAdded()){
+                            FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                            fragmentTransaction.add(R.id.fragment_container,resultFragment).addToBackStack("").commit();
+                        }
+
                     }else {
                         Snackbar.make(v,"请输入发包间隔时间",Snackbar.LENGTH_SHORT);
                     }
@@ -191,6 +215,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 //当停止发包按钮被点击时，设变量为true，停止发包
                 if (Constants.CONNECTSTATE){
                     Constants.shouldStopSendingData = true;
+
                 }else {
                     Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
                 }
@@ -223,6 +248,17 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        if (resultFragment.isAdded()){
+            FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+            fragmentTransaction.remove(resultFragment).commit();
+        }else {
+            finish();
+        }
+
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -259,6 +295,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 }else {
                     connectVersion.setText("蓝牙2.0");
                 }
+                break;
+            }
+            case Constants.EXCEPTION_INFO:{
+                String exceptionInfo = message.obj.toString();
+                Snackbar.make(dataNotBackCounts,"出现异常,请重新连接",Snackbar.LENGTH_SHORT).show();
                 break;
             }
         }
@@ -299,6 +340,10 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     }
 
     public void resetCounts(){
+        dataSentCounts.setText("0");
+        dataSentSuccessCounts.setText("0");
+        dataSentWrongCounts.setText("0");
+        dataNotBackCounts.setText("0");
         mBluetoothClassic.resetCounts();
     }
 
@@ -314,5 +359,118 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     protected void onStop() {
         EventBus.getDefault().unregister(this);
         super.onStop();
+    }
+
+    public static class ResultFragment extends Fragment{
+
+//        RecyclerView resultListOK;
+        RecyclerView resultListError;
+//        RecyclerView.Adapter okAdapter;
+        RecyclerView.Adapter errorAdapter;
+
+//        List<String> okResults = new ArrayList<>();
+        List<String> errorResults = new ArrayList<>();
+
+        public ResultFragment(){
+            EventBus.getDefault().register(this);
+        }
+
+        @Nullable
+        @Override
+        public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+
+            View rootView = LayoutInflater.from(getActivity()).inflate(R.layout.fragment_result,container,false);
+
+//            resultListOK = (RecyclerView) rootView.findViewById(R.id.result_list_ok);
+            resultListError = (RecyclerView) rootView.findViewById(R.id.result_list_error);
+
+//            resultListOK.setLayoutManager(new LinearLayoutManager(getActivity()));
+            resultListError.setLayoutManager(new LinearLayoutManager(getActivity()));
+
+//            okAdapter = new ResultOKAdapter();
+            errorAdapter = new ResultErrorAdapter();
+
+//            resultListOK.setAdapter(okAdapter);
+            resultListError.setAdapter(errorAdapter);
+
+            return rootView;
+        }
+//
+//        private class ResultOKAdapter extends RecyclerView.Adapter{
+//
+//            @Override
+//            public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+//                Holder holder = new Holder(LayoutInflater.from(getActivity()).inflate(R.layout.result_item,parent,false));
+//
+//                return holder;
+//            }
+//
+//            private class Holder extends RecyclerView.ViewHolder{
+//
+//                TextView result;
+//
+//                public Holder(View itemView) {
+//                    super(itemView);
+//                    result = (TextView) itemView.findViewById(R.id.result_item);
+//                }
+//            }
+//
+//            @Override
+//            public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+//                Holder mHolder = (Holder) holder;
+//                mHolder.result.setText(okResults.get(position));
+//            }
+//
+//            @Override
+//            public int getItemCount() {
+//                return okResults.size();
+//            }
+//        }
+
+        private class ResultErrorAdapter extends RecyclerView.Adapter{
+
+            @Override
+            public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
+                Holder holder = new Holder(LayoutInflater.from(getActivity()).inflate(R.layout.result_item,parent,false));
+
+                return holder;
+            }
+
+            private class Holder extends RecyclerView.ViewHolder{
+
+                TextView result;
+
+                public Holder(View itemView) {
+                    super(itemView);
+                    result = (TextView) itemView.findViewById(R.id.result_item);
+                }
+            }
+
+            @Override
+            public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
+                Holder mHolder = (Holder) holder;
+                mHolder.result.setText(errorResults.get(position));
+            }
+
+            @Override
+            public int getItemCount() {
+                return errorResults.size();
+            }
+        }
+
+        @Subscribe(threadMode = ThreadMode.MAIN)
+        public void handleMessage(MessageEvent event){
+            if (event.message.what == Constants.EXCEPTION_INFO){
+                String exceptionInfo = event.message.obj.toString();
+                errorResults.add(exceptionInfo);
+                errorAdapter.notifyDataSetChanged();
+            }else if (event.message.what == Constants.ERROR_DATA_SET_CHANGED){
+                Bundle bundle = event.message.getData();
+                String result = "<" + bundle.getString("result") + ">";
+                errorResults.add(result);
+                errorAdapter.notifyDataSetChanged();
+            }
+        }
+
     }
 }

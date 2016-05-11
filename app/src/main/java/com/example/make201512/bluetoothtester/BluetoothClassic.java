@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
 
@@ -17,8 +18,11 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
+
+import javax.security.auth.login.LoginException;
 
 /**
  * Created by Tom on 2016/4/28.
@@ -96,8 +100,13 @@ public class BluetoothClassic {
     }
 
     public void sendPackages(int frequency){
-        connectedThread = new ConnectedThread(socket);
-        connectedThread.start();
+//        if (connectedThread != null){
+//            connectedThread.interrupt();
+//            connectedThread = null;
+//        }
+//        connectedThread = new ConnectedThread(socket);
+
+//        connectedThread.start();
 
         connectedThread.write(frequency);
         Log.e(TAG,"sendPackages被执行");
@@ -185,7 +194,7 @@ public class BluetoothClassic {
                     String deviceInfo = deviceName + "\n" + deviceAddress;
 
                     if (!devices.containsValue(deviceInfo)) {
-                        Log.e(TAG,"搜索到设备" + deviceIndex +" ，添加到列表");
+                        Log.e(TAG,"搜索到设备" + deviceIndex +" ，添加到列表" + deviceInfo);
 
                         //将获取到的设备按角标顺序存入Map集合中
                         devices.put(deviceIndex,device);
@@ -203,8 +212,11 @@ public class BluetoothClassic {
                     break;
                 }
                 case BluetoothDevice.ACTION_BOND_STATE_CHANGED:{
-
-                    connectDevice(deviceIndex);
+                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                    if (device.getBondState() == BluetoothDevice.BOND_BONDED){
+                        new ConnectThread(device).start();
+                        Log.e(TAG,"开始连接设备");
+                    }
 
                     Log.e(TAG,"设备配对状态改变");
                     break;
@@ -247,6 +259,12 @@ public class BluetoothClassic {
                 Log.e(TAG,"临时Socket获取成功");
             } catch (IOException e) {
                 e.printStackTrace();
+
+                Message message = new Message();
+                message.what = Constants.EXCEPTION_INFO;
+                message.obj = e.getMessage();
+                EventBus.getDefault().post(new MessageEvent(message));
+
                 Log.e(TAG,"不能获取到BluetoothSocket");
             }
 
@@ -273,6 +291,7 @@ public class BluetoothClassic {
 
                 if (connectedThread == null){
                     connectedThread = new ConnectedThread(socket);
+                    connectedThread.start();
                 }
 
                 //如果当前蓝牙设备未配对，要手动进行配对工作。
@@ -290,6 +309,10 @@ public class BluetoothClassic {
 
                     } catch (Exception e) {
                         e.printStackTrace();
+                        Message message = new Message();
+                        message.what = Constants.EXCEPTION_INFO;
+                        message.obj = e.getMessage();
+                        EventBus.getDefault().post(new MessageEvent(message));
                         Log.e(TAG,"绑定异常");
                     }
                 }
@@ -316,10 +339,18 @@ public class BluetoothClassic {
                         Log.e(TAG, "Success to setPairingConfirmation.");
                     } catch (Exception e) {
                         Log.e(TAG,"设置配对信息失败");
+                        Message message = new Message();
+                        message.what = Constants.EXCEPTION_INFO;
+                        message.obj = e.getMessage();
+                        EventBus.getDefault().post(new MessageEvent(message));
                         e.printStackTrace();
                     }
                 } catch (Exception e) {
                     e.printStackTrace();
+                    Message message = new Message();
+                    message.what = Constants.EXCEPTION_INFO;
+                    message.obj = e.getMessage();
+                    EventBus.getDefault().post(new MessageEvent(message));
                     Log.e(TAG,"获取setPin方法错误");
                 }
             }
@@ -345,6 +376,10 @@ public class BluetoothClassic {
                 tmpInputStream = mSocket.getInputStream();
                 tmpOutputStream = mSocket.getOutputStream();
             } catch (IOException e) {
+                Message message = new Message();
+                message.what = Constants.EXCEPTION_INFO;
+                message.obj = e.getMessage();
+                EventBus.getDefault().post(new MessageEvent(message));
                 e.printStackTrace();
             }
 
@@ -353,43 +388,114 @@ public class BluetoothClassic {
         }
 
         @Override
-        public void run() {
+        public synchronized void run() {
             Log.e(TAG,"开始处理输入输出流");
 
-            byte[] buffer = new byte[1024];
-            int bytes;
+            int[] expectedBytes = new int[]{0xff, 0x55, 0x00, 0x30, 0x0d, 0x0a};
+            int[] unexpectedBytes = new int[]{0xff, 0x55, 0x00, 0x00, 0x0d, 0x0a};
+            int indexForExpectedBytes = 0;
+            int indexForUnexpectedBytes = 0;
+            int indexForErrorBytes = 0;
+            String result = "";
+            boolean goElseIf = false;
+            boolean goElse = false;
 
             while (mSocket.isConnected()){
                 try {
                     Log.e(TAG,"开始读取输入流");
-                    bytes = inputStream.read(buffer);
 
-                    String receivedData = bytes2HexString(buffer);
+                    while(true){
+                        int nextByte = inputStream.read();
+                        result += Integer.toHexString(nextByte);
+                        Log.e(TAG,"当前字节为:" + nextByte);
+                        if(nextByte == expectedBytes[indexForExpectedBytes] && !goElseIf && !goElse){
+                            indexForExpectedBytes++;
+                            indexForUnexpectedBytes++;
+                            indexForErrorBytes++;
+                            if(indexForExpectedBytes >= expectedBytes.length){
+                                indexForExpectedBytes = 0;
+                                indexForUnexpectedBytes = 0;
+                                indexForErrorBytes = 0;
+                                // ok count ++
+                                packagesSentSuccessful++;
+                                Message message = new Message();
+                                message.what = Constants.UPDATE_PACKAGES_SENT_SUCCESSFUL;
+                                message.obj = packagesSentSuccessful;
+                                EventBus.getDefault().post(new MessageEvent(message));
 
-                    Log.e(TAG,"接收到的数据为：" + receivedData);
+//                                Message msg = new Message();
+//                                msg.what = Constants.OK_DATA_SET_CHANGED;
+//                                Bundle bundle = new Bundle();
+//                                bundle.putString("result","成功:" + result);
+//                                msg.setData(bundle);
+//                                EventBus.getDefault().post(new MessageEvent(msg));
 
-                    if (receivedData.equals(Constants.EXPECTED_RECEIVED_DATA)){
-                        packagesSentSuccessful++;
-                        Message message = new Message();
-                        message.what = Constants.UPDATE_PACKAGES_SENT_SUCCESSFUL;
-                        message.obj = packagesSentSuccessful;
-                        EventBus.getDefault().post(new MessageEvent(message));
-                    }else if (receivedData.equals(Constants.EXPECTED_RECEIVED_FAIL_DATA)){
-                        packagesSentFail++;
-                        Message message = new Message();
-                        message.what = Constants.UPDATE_PACKAGES_SENT_FAIL;
-                        message.obj = packagesSentFail;
-                        EventBus.getDefault().post(new MessageEvent(message));
-                    }else {
-                        packagesNotBack++;
-                        Message message = new Message();
-                        message.what = Constants.UPDATE_PACKAGES_NOT_BACK;
-                        message.obj = packagesNotBack;
-                        EventBus.getDefault().post(new MessageEvent(message));
+                                result = "";
+                            }
+                        }else if (nextByte == unexpectedBytes[indexForUnexpectedBytes] && !goElse){   // dismatch between expected and failed
+
+                            goElseIf = true;
+                            indexForUnexpectedBytes++;
+                            indexForErrorBytes++;
+
+                            if (indexForUnexpectedBytes >= unexpectedBytes.length){
+                                indexForExpectedBytes = 0;  // if dismatch, try match from the first byte
+                                indexForUnexpectedBytes = 0;
+                                indexForErrorBytes = 0;
+                                goElseIf = false;
+
+                                packagesSentFail++;
+                                Message message = new Message();
+                                message.what = Constants.UPDATE_PACKAGES_SENT_FAIL;
+                                message.obj = packagesSentFail;
+                                EventBus.getDefault().post(new MessageEvent(message));
+
+                                Message msg = new Message();
+                                msg.what = Constants.ERROR_DATA_SET_CHANGED;
+                                Bundle bundle = new Bundle();
+                                bundle.putString("result","失败:" + result);
+                                msg.setData(bundle);
+                                EventBus.getDefault().post(new MessageEvent(msg));
+
+                                result = "";
+                            }
+
+                        }else {
+                            goElse = true;
+                            indexForErrorBytes++;
+                            if (indexForErrorBytes >= unexpectedBytes.length){
+                                indexForExpectedBytes = 0;
+                                indexForUnexpectedBytes = 0;
+                                indexForErrorBytes = 0;
+                                goElse = false;
+
+                                packagesNotBack++;
+                                Message message = new Message();
+                                message.what = Constants.UPDATE_PACKAGES_NOT_BACK;
+                                message.obj = packagesNotBack;
+                                EventBus.getDefault().post(new MessageEvent(message));
+
+                                Message msg = new Message();
+                                msg.what = Constants.ERROR_DATA_SET_CHANGED;
+                                Bundle bundle = new Bundle();
+                                bundle.putString("result","错误:" + result);
+                                msg.setData(bundle);
+                                EventBus.getDefault().post(new MessageEvent(msg));
+
+                                result = "";
+                            }
+
+                        }
+
                     }
+
                 } catch (IOException e) {
                     e.printStackTrace();
                     Log.e(TAG,"字节读取异常");
+                    Message message = new Message();
+                    message.what = Constants.EXCEPTION_INFO;
+                    message.obj = e.getMessage();
+                    EventBus.getDefault().post(new MessageEvent(message));
                     break;
                 }
             }
@@ -400,18 +506,6 @@ public class BluetoothClassic {
             new SendPackagesThread(outputStream,frequency).start();
         }
 
-        //将字节流转换为十六进制字符串的方法
-        public String bytes2HexString(byte[] b) {
-            String ret = "";
-            for (int i = 0; i < b.length; i++) {
-                String hex = Integer.toHexString(b[i] & 0xFF);
-                if (hex.length() == 1) {
-                    hex = '0' + hex;
-                }
-                ret += hex;
-            }
-            return ret;
-        }
 
         public void cancel(){
             Log.e(TAG,"Cancel被执行到");
@@ -421,6 +515,10 @@ public class BluetoothClassic {
                     Log.e(TAG,"InputStream关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
+                    Message message = new Message();
+                    message.what = Constants.EXCEPTION_INFO;
+                    message.obj = e.getMessage();
+                    EventBus.getDefault().post(new MessageEvent(message));
                     Log.e(TAG,"无法关闭输入流");
                 }
             }
@@ -430,6 +528,10 @@ public class BluetoothClassic {
                     Log.e(TAG,"OutputStream关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
+                    Message message = new Message();
+                    message.what = Constants.EXCEPTION_INFO;
+                    message.obj = e.getMessage();
+                    EventBus.getDefault().post(new MessageEvent(message));
                     Log.e(TAG,"无法关闭输出流");
                 }
             }
@@ -439,6 +541,10 @@ public class BluetoothClassic {
                     Log.e(TAG,"mSocket关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
+                    Message message = new Message();
+                    message.what = Constants.EXCEPTION_INFO;
+                    message.obj = e.getMessage();
+                    EventBus.getDefault().post(new MessageEvent(message));
                     Log.e(TAG,"无法关闭Socket");
                 }
             }
@@ -448,6 +554,10 @@ public class BluetoothClassic {
                     Log.e(TAG,"socket关闭成功");
                 } catch (IOException e) {
                     e.printStackTrace();
+                    Message message = new Message();
+                    message.what = Constants.EXCEPTION_INFO;
+                    message.obj = e.getMessage();
+                    EventBus.getDefault().post(new MessageEvent(message));
                     Log.e(TAG,"无法关闭Socket");
                 }
             }
@@ -470,8 +580,8 @@ public class BluetoothClassic {
                 //循环发包，根据用户设定的间隔时间进行发包操作
                 while (true){
                     if (!Constants.shouldStopSendingData){
-                        for (int i = 0;i < Constants.MCORE_TEST_DATA.length;i++){
-                            outputStream.write(Constants.MCORE_TEST_DATA[i]);
+                        for (int i = 0;i < Constants.TEST_DATA.length;i++){
+                            outputStream.write(Constants.TEST_DATA[i]);
                         }
                     }else {
                         break;
@@ -494,9 +604,17 @@ public class BluetoothClassic {
                 }
             } catch (IOException e) {
                 e.printStackTrace();
+                Message message = new Message();
+                message.what = Constants.EXCEPTION_INFO;
+                message.obj = e.getMessage();
+                EventBus.getDefault().post(new MessageEvent(message));
                 Log.e(TAG,"写入数据异常");
             } catch (InterruptedException e) {
                 e.printStackTrace();
+                Message message = new Message();
+                message.what = Constants.EXCEPTION_INFO;
+                message.obj = e.getMessage();
+                EventBus.getDefault().post(new MessageEvent(message));
                 Log.e(TAG,"线程阻塞异常");
             }
         }

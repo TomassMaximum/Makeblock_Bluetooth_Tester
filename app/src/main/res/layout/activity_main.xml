@@ -361,4 +361,11 @@
 
     </ScrollView>
 
+    <LinearLayout
+        android:orientation="vertical"
+        android:id="@+id/fragment_container"
+        android:layout_alignParentBottom="true"
+        android:layout_width="match_parent"
+        android:layout_height="250dp"/>
+
 </RelativeLayout>
