@@ -167,6 +167,7 @@ public class BluetoothClassic {
                 }
                 case BluetoothDevice.ACTION_ACL_CONNECTED:{
                     Log.e(TAG,"已连接诶");
+                    Constants.CONNECT_STATE = true;
                     Message message = new Message();
                     message.what = Constants.CONNECT_STATE_CHANGED;
                     EventBus.getDefault().post(new MessageEvent(message));
@@ -285,7 +286,7 @@ public class BluetoothClassic {
                     Log.e(TAG,"Socket连接异常");
                 }
 
-                Constants.CONNECTSTATE = true;
+                Constants.CONNECT_STATE = true;
                 socket = mSocket;
                 Log.e(TAG,"Socket赋值成功已连接");
 
@@ -561,7 +562,7 @@ public class BluetoothClassic {
                     Log.e(TAG,"无法关闭Socket");
                 }
             }
-            Constants.CONNECTSTATE = false;
+            Constants.CONNECT_STATE = false;
         }
     }
 

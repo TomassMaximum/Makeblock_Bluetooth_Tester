@@ -7,7 +7,7 @@ import java.util.UUID;
  */
 public class Constants {
 
-    public static boolean CONNECTSTATE = false;
+    public static boolean CONNECT_STATE = false;
 
     public static final int REQUEST_ENABLE_BT = 1;
 

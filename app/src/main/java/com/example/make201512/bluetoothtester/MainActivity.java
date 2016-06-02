@@ -126,7 +126,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         switch (v.getId()){
             case R.id.button_connect_classic:{
                 if (bluetoothAdapter.isEnabled()){
-                    if (Constants.CONNECTSTATE){
+                    if (Constants.CONNECT_STATE){
                         Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
                     }else {
                         mBluetoothClassic = BluetoothClassic.getInstance(this);
@@ -147,39 +147,43 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
             }
 
             case R.id.button_connect_le:{
-                if (bluetoothAdapter.isEnabled()){
-                    if (Constants.CONNECTSTATE){
-                        Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
-                    }else {
-                        mBluetoothLE = BluetoothLE.getInstance(this);
-                        //判断当前设备是否支持BLE
-                        if (Build.VERSION.SDK_INT >= 18){
-                            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)){
-                                Constants.IS_BLE_STATE = true;
-                                //当搜索按钮被点击时，弹出搜索对话框进行搜索和连接操作
-                                SearchDevicesDialog dialog = new SearchDevicesDialog(new MaterialDialog.Builder(this).customView(R.layout.search_dialog, false));
 
-                                //显示对话框
-                                dialog.show();
-                            }else {
-                                Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
-                            }
-                        }else {
-                            Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
-                        }
-                    }
-                }else {
-                    Snackbar.make(v,"请先打开蓝牙",Snackbar.LENGTH_SHORT).show();
-                    Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                    startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
-                }
+                Snackbar.make(v,"尚不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
+
+                //当前不支持蓝牙4.0
+//                if (bluetoothAdapter.isEnabled()){
+//                    if (Constants.CONNECTSTATE){
+//                        Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
+//                    }else {
+//                        mBluetoothLE = BluetoothLE.getInstance(this);
+//                        //判断当前设备是否支持BLE
+//                        if (Build.VERSION.SDK_INT >= 18){
+//                            if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_BLUETOOTH_LE)){
+//                                Constants.IS_BLE_STATE = true;
+//                                //当搜索按钮被点击时，弹出搜索对话框进行搜索和连接操作
+//                                SearchDevicesDialog dialog = new SearchDevicesDialog(new MaterialDialog.Builder(this).customView(R.layout.search_dialog, false));
+//
+//                                //显示对话框
+//                                dialog.show();
+//                            }else {
+//                                Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
+//                            }
+//                        }else {
+//                            Snackbar.make(v,"当前设备不支持蓝牙4.0",Snackbar.LENGTH_SHORT).show();
+//                        }
+//                    }
+//                }else {
+//                    Snackbar.make(v,"请先打开蓝牙",Snackbar.LENGTH_SHORT).show();
+//                    Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
+//                    startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
+//                }
 
                 break;
             }
 
             case R.id.button_send_data:{
                 //当发包按钮被点击时，判断设备是否已连接蓝牙，如果已连接，则进行发包操作，如果未连接，则弹出Snackbar提示用户连接蓝牙设备
-                if (Constants.CONNECTSTATE){
+                if (Constants.CONNECT_STATE){
                     //重置变量
                     resetCounts();
 
@@ -213,7 +217,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case R.id.button_stop_send_data:{
                 //当停止发包按钮被点击时，设变量为true，停止发包
-                if (Constants.CONNECTSTATE){
+                if (Constants.CONNECT_STATE){
                     Constants.shouldStopSendingData = true;
 
                 }else {
@@ -224,7 +228,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             case R.id.button_disconnect:{
                 //当断开连接按钮被点击时，启动断开连接流程
-                if (Constants.CONNECTSTATE){
+                if (Constants.CONNECT_STATE){
 
                     //复位各项数据
                     dataSentCounts.setText("0");
@@ -234,7 +238,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                     blueToothName.setText("未连接");
                     connectVersion.setText("未连接");
                     Constants.shouldStopSendingData = true;
-                    Constants.CONNECTSTATE = false;
+                    Constants.CONNECT_STATE = false;
                     disconnect();
                 }else {
                     Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
@@ -363,12 +367,9 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     public static class ResultFragment extends Fragment{
 
-//        RecyclerView resultListOK;
         RecyclerView resultListError;
-//        RecyclerView.Adapter okAdapter;
         RecyclerView.Adapter errorAdapter;
 
-//        List<String> okResults = new ArrayList<>();
         List<String> errorResults = new ArrayList<>();
 
         public ResultFragment(){
@@ -381,51 +382,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
             View rootView = LayoutInflater.from(getActivity()).inflate(R.layout.fragment_result,container,false);
 
-//            resultListOK = (RecyclerView) rootView.findViewById(R.id.result_list_ok);
             resultListError = (RecyclerView) rootView.findViewById(R.id.result_list_error);
 
-//            resultListOK.setLayoutManager(new LinearLayoutManager(getActivity()));
             resultListError.setLayoutManager(new LinearLayoutManager(getActivity()));
 
-//            okAdapter = new ResultOKAdapter();
             errorAdapter = new ResultErrorAdapter();
 
-//            resultListOK.setAdapter(okAdapter);
             resultListError.setAdapter(errorAdapter);
 
             return rootView;
         }
-//
-//        private class ResultOKAdapter extends RecyclerView.Adapter{
-//
-//            @Override
-//            public RecyclerView.ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
-//                Holder holder = new Holder(LayoutInflater.from(getActivity()).inflate(R.layout.result_item,parent,false));
-//
-//                return holder;
-//            }
-//
-//            private class Holder extends RecyclerView.ViewHolder{
-//
-//                TextView result;
-//
-//                public Holder(View itemView) {
-//                    super(itemView);
-//                    result = (TextView) itemView.findViewById(R.id.result_item);
-//                }
-//            }
-//
-//            @Override
-//            public void onBindViewHolder(RecyclerView.ViewHolder holder, int position) {
-//                Holder mHolder = (Holder) holder;
-//                mHolder.result.setText(okResults.get(position));
-//            }
-//
-//            @Override
-//            public int getItemCount() {
-//                return okResults.size();
-//            }
-//        }
 
         private class ResultErrorAdapter extends RecyclerView.Adapter{
 

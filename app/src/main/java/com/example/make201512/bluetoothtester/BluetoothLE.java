@@ -124,7 +124,7 @@ public class BluetoothLE {
         BluetoothDevice device = devices.get(position);
         mBluetoothGatt = device.connectGatt(mContext,true,mBluetoothGattCallback);
 
-        Constants.CONNECTSTATE = true;
+        Constants.CONNECT_STATE = true;
     }
 
     public void write(int frequency){
@@ -134,7 +134,7 @@ public class BluetoothLE {
 
     public void disconnect(){
         mBluetoothGatt.disconnect();
-        Constants.CONNECTSTATE = false;
+        Constants.CONNECT_STATE = false;
         mSendPackagesThread = null;
     }
 
