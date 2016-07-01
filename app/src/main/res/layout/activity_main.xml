@@ -106,36 +106,24 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content">
 
-                <TextView
-                    android:text="发包间隔"
-                    android:textSize="18sp"
+                <com.andexert.library.RippleView
+                    android:layout_gravity="center_horizontal"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
+                    android:layout_height="wrap_content"
+                    xmlns:android="http://schemas.android.com/apk/res/android"
+                    xmlns:app="http://schemas.android.com/apk/res-auto"
+                    app:rv_color="@android:color/white">
 
-                <EditText
-                    android:id="@+id/data_sent_time"
-                    android:digits="1234567890"
-                    android:textSize="18sp"
-                    android:textColor="@color/colorAccent"
-                    android:layout_marginLeft="12dp"
-                    android:layout_marginStart="12dp"
-                    android:layout_width="100dp"
-                    android:layout_height="wrap_content" />
+                    <Button
+                        android:textColor="@android:color/white"
+                        android:background="@color/colorAccent"
+                        android:id="@+id/button_send_data_in_20"
+                        android:textSize="18sp"
+                        android:text="20ms发包"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content" />
 
-                <TextView
-                    android:text="ms"
-                    android:textSize="18sp"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content" />
-
-            </LinearLayout>
-
-            <LinearLayout
-                android:gravity="center_horizontal"
-                android:layout_marginTop="12dp"
-                android:orientation="horizontal"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content">
+                </com.andexert.library.RippleView>
 
                 <com.andexert.library.RippleView
                     android:layout_gravity="center_horizontal"
@@ -148,9 +136,11 @@
                     <Button
                         android:textColor="@android:color/white"
                         android:background="@color/colorAccent"
-                        android:id="@+id/button_send_data"
+                        android:id="@+id/button_send_data_in_50"
                         android:textSize="18sp"
-                        android:text="发包"
+                        android:text="50ms发包"
+                        android:layout_marginLeft="20dp"
+                        android:layout_marginStart="20dp"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content" />
 

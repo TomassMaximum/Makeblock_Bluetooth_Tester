@@ -51,13 +51,11 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     TextView dataNotBackCounts;
     TextView connectVersion;
 
-    EditText dataSentFrequency;
-    int frequency;
-
     TextView blueToothName;
     TextView blueToothCounts;
 
-    Button sendData;
+    Button sendDataIn20;
+    Button sendDataIn50;
     Button stopSendData;
     Button connect;
     Button disconnect;
@@ -181,37 +179,39 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 break;
             }
 
-            case R.id.button_send_data:{
-                //当发包按钮被点击时，判断设备是否已连接蓝牙，如果已连接，则进行发包操作，如果未连接，则弹出Snackbar提示用户连接蓝牙设备
+            case R.id.button_send_data_in_20:{
+                //当用户点击20ms发包时
                 if (Constants.CONNECT_STATE){
-                    //重置变量
-                    resetCounts();
+                    Constants.shouldStopSendingData = false;
+                    sendPackages(20);
+                    Log.e(TAG,"消息已发送");
 
-                    //获取到用户输入的发包频率
-                    if (!dataSentFrequency.getText().toString().equals("")){
-                        Constants.shouldStopSendingData = false;
-                        String enteredNum = dataSentFrequency.getText().toString();
-
-                        Log.e(TAG,"用户输入为：" + enteredNum);
-
-                        frequency = Integer.valueOf(enteredNum);
-
-                        //使用用户设置的频率发包
-                        sendPackages(frequency);
-                        Log.e(TAG,"消息已发送");
-
-                        if (!resultFragment.isAdded()){
-                            FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
-                            fragmentTransaction.add(R.id.fragment_container,resultFragment).addToBackStack("").commit();
-                        }
-
-                    }else {
-                        Snackbar.make(v,"请输入发包间隔时间",Snackbar.LENGTH_SHORT);
+                    if (!resultFragment.isAdded()){
+                        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                        fragmentTransaction.add(R.id.fragment_container,resultFragment).addToBackStack("").commit();
                     }
 
                 }else {
                     Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
                 }
+                break;
+            }
+
+            case R.id.button_send_data_in_50:{
+                if (Constants.CONNECT_STATE){
+                    Constants.shouldStopSendingData = false;
+                    sendPackages(50);
+                    Log.e(TAG,"消息已发送");
+
+                    if (!resultFragment.isAdded()){
+                        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                        fragmentTransaction.add(R.id.fragment_container,resultFragment).addToBackStack("").commit();
+                    }
+
+                }else {
+                    Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
+                }
+
                 break;
             }
 
@@ -316,12 +316,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         dataNotBackCounts = (TextView) findViewById(R.id.data_sent_not_back);
         connectVersion = (TextView) findViewById(R.id.connect_version);
 
-        dataSentFrequency = (EditText) findViewById(R.id.data_sent_time);
+        sendDataIn20 = (Button) findViewById(R.id.button_send_data_in_20);
+        sendDataIn50 = (Button) findViewById(R.id.button_send_data_in_50);
 
         blueToothName = (TextView) findViewById(R.id.bluetooth_name);
         blueToothCounts = (TextView) findViewById(R.id.device_counts);
 
-        sendData = (Button) findViewById(R.id.button_send_data);
         stopSendData = (Button) findViewById(R.id.button_stop_send_data);
         connect = (Button) findViewById(R.id.button_connect_classic);
         disconnect = (Button) findViewById(R.id.button_disconnect);
@@ -329,17 +329,16 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         connectLE = (Button) findViewById(R.id.button_connect_le);
 
         connect.setOnClickListener(this);
-        sendData.setOnClickListener(this);
+        sendDataIn20.setOnClickListener(this);
+        sendDataIn50.setOnClickListener(this);
         stopSendData.setOnClickListener(this);
         disconnect.setOnClickListener(this);
         editName.setOnClickListener(this);
         connectLE.setOnClickListener(this);
-
-        dataSentFrequency.setText("50");
-        dataSentFrequency.setSelection(dataSentFrequency.length());
     }
 
     public void sendPackages(int frequency){
+        Constants.shouldStopSendingData = false;
         mBluetoothClassic.sendPackages(frequency);
     }
 

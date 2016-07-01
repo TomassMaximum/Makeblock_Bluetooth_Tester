@@ -108,6 +108,9 @@ public class BluetoothClassic {
 
 //        connectedThread.start();
 
+        if (connectedThread == null){
+            Log.e(TAG,"connectedThread为空");
+        }
         connectedThread.write(frequency);
         Log.e(TAG,"sendPackages被执行");
     }
@@ -243,6 +246,8 @@ public class BluetoothClassic {
             //获取该蓝牙设备的名称
             deviceName = mDevice.getName();
 
+            Log.e(TAG,"ConnectThread设备名称为:" + deviceName);
+
             //考虑设备蓝牙名称为空的情况，避免空指针
             if (deviceName == null){
                 deviceName = "未知设备";
@@ -293,6 +298,7 @@ public class BluetoothClassic {
                 if (connectedThread == null){
                     connectedThread = new ConnectedThread(socket);
                     connectedThread.start();
+                    Log.e(TAG,"ConnectedThread线程被开启");
                 }
 
                 //如果当前蓝牙设备未配对，要手动进行配对工作。
@@ -300,9 +306,9 @@ public class BluetoothClassic {
             }else {
                 Log.e(TAG,"设备未配对，进行配对操作");
                 //如果SDK版本在19以上，则直接调用系统API，19以下使用反射来进行主动配对。
-                if (Build.VERSION.SDK_INT >= 19){
-                    mDevice.createBond();
-                }else {
+//                if (Build.VERSION.SDK_INT >= 19){
+//                    mDevice.createBond();
+//                }else {
                     Method method;
                     try {
                         method = mDevice.getClass().getMethod("createBond", (Class[]) null);
@@ -315,7 +321,7 @@ public class BluetoothClassic {
                         message.obj = e.getMessage();
                         EventBus.getDefault().post(new MessageEvent(message));
                         Log.e(TAG,"绑定异常");
-                    }
+//                    }
                 }
             }
         }
@@ -380,6 +386,7 @@ public class BluetoothClassic {
                 Message message = new Message();
                 message.what = Constants.EXCEPTION_INFO;
                 message.obj = e.getMessage();
+                Log.e(TAG,"ConnectedThread异常信息:" + e.getMessage());
                 EventBus.getDefault().post(new MessageEvent(message));
                 e.printStackTrace();
             }
@@ -406,7 +413,9 @@ public class BluetoothClassic {
                     Log.e(TAG,"开始读取输入流");
 
                     while(true){
+                        Log.e(TAG,"进入while(true)循环");
                         int nextByte = inputStream.read();
+                        Log.e(TAG,"阻塞读取完成");
                         result += Integer.toHexString(nextByte);
                         Log.e(TAG,"当前字节为:" + nextByte);
                         if(nextByte == expectedBytes[indexForExpectedBytes] && !goElseIf && !goElse){
@@ -504,6 +513,7 @@ public class BluetoothClassic {
 
         //向蓝牙模块发包的方法
         public void write(int frequency){
+            Log.e(TAG,"ConnectedThread的write方法被执行");
             new SendPackagesThread(outputStream,frequency).start();
         }
 
@@ -577,18 +587,20 @@ public class BluetoothClassic {
 
         @Override
         public void run() {
+            Log.e(TAG,"SendPackageThread线程run方法执行");
             try {
                 //循环发包，根据用户设定的间隔时间进行发包操作
                 while (true){
                     if (!Constants.shouldStopSendingData){
-                        for (int i = 0;i < Constants.TEST_DATA.length;i++){
-                            outputStream.write(Constants.TEST_DATA[i]);
+                        for (int i = 0;i < Constants.TEST_DATA_BYTE_ARRAY.length;i++){
+                            outputStream.write(Constants.TEST_DATA_BYTE_ARRAY[i]);
                         }
+                        outputStream.flush();
                     }else {
                         break;
                     }
-                    String string = new String(Constants.TEST_DATA);
-                    Log.e(TAG,"一条消息已发送完毕" + string);
+//                    String string = new String(Constants.TEST_DATA);
+                    Log.e(TAG,"一条消息已发送完毕" + bytesToHex(Constants.TEST_DATA_BYTE_ARRAY));
 
                     //已发的数据包数量自增
                     packagesSent++;
@@ -618,6 +630,18 @@ public class BluetoothClassic {
                 EventBus.getDefault().post(new MessageEvent(message));
                 Log.e(TAG,"线程阻塞异常");
             }
+        }
+
+        final protected char[] hexArray = "0123456789ABCDEF".toCharArray();
+
+        public String bytesToHex(byte[] bytes) {
+            char[] hexChars = new char[bytes.length * 2];
+            for ( int j = 0; j < bytes.length; j++ ) {
+                int v = bytes[j] & 0xFF;
+                hexChars[j * 2] = hexArray[v >>> 4];
+                hexChars[j * 2 + 1] = hexArray[v & 0x0F];
+            }
+            return new String(hexChars);
         }
     }
 
