@@ -30,4 +30,5 @@ dependencies {
     compile 'com.pnikosis:materialish-progress:1.7'
     compile 'com.android.support:design:23.3.0'
     compile 'org.greenrobot:eventbus:3.0.0'
+    compile 'com.pnikosis:materialish-progress:1.7'
 }

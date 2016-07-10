@@ -21,7 +21,7 @@ public class Constants {
 
     public static final int UPDATE_BLUETOOTH_DEVICE_NAME_AND_COUNTS = 4;
 
-    public static final int UPDATE_BLUETOOTH_DEVICES_LIST = 5;
+    public static final int SHOW_PAIRING_REQUEST_DIALOG = 5;
 
     public static final int SCAN_DEVICES_FINISHED = 6;
 
@@ -35,9 +35,13 @@ public class Constants {
 
     public static final int OK_DATA_SET_CHANGED = 11;
 
-    public static final int ERROR_DATA_SET_CHANGED = 12;
+    public static final int RESET_FRAGMENT_LOGS = 12;
 
     public static final int EXCEPTION_INFO = 13;
+
+    public static final int BT_CONNECT_START = 14;
+
+    public static final int BT_CONNECT_FINISHED = 15;
 
     public static boolean IS_BLE_STATE = false;
 

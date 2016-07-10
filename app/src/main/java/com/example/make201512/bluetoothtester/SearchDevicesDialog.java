@@ -73,6 +73,9 @@ public class SearchDevicesDialog extends MaterialDialog {
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
             connectDevice(position);
+            Message message = new Message();
+            message.what = Constants.BT_CONNECT_START;
+            EventBus.getDefault().post(new MessageEvent(message));
             dismiss();
         }
     }
