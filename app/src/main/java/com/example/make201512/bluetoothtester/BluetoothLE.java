@@ -116,15 +116,15 @@ public class BluetoothLE {
         }
     };
 
-    public void connect(int position){
-        if (mScanning){
-            mBluetoothAdapter.stopLeScan(mLeScanCallback);
-        }
-
-        BluetoothDevice device = devices.get(position);
-        mBluetoothGatt = device.connectGatt(mContext,true,mBluetoothGattCallback);
-
-        Constants.CONNECT_STATE = true;
+    public void connect(String name){
+//        if (mScanning){
+//            mBluetoothAdapter.stopLeScan(mLeScanCallback);
+//        }
+//
+//        BluetoothDevice device = devices.get(position);
+//        mBluetoothGatt = device.connectGatt(mContext,true,mBluetoothGattCallback);
+//
+//        Constants.CONNECT_STATE = true;
     }
 
     public void write(int frequency){

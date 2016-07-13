@@ -1,5 +1,7 @@
 package com.example.make201512.bluetoothtester;
 
+import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
 import android.os.Bundle;
 import android.os.Message;
 import android.util.Log;
@@ -14,6 +16,8 @@ import com.pnikosis.materialishprogress.ProgressWheel;
 
 import org.greenrobot.eventbus.EventBus;
 import org.greenrobot.eventbus.Subscribe;
+
+import java.util.ArrayList;
 
 /**
  * 自定义对话框类，使用第三方库MaterialDialog。
@@ -40,10 +44,6 @@ public class SearchDevicesDialog extends MaterialDialog {
     //ListView的适配器
     ArrayAdapter<String> arrayAdapter;
 
-    BluetoothClassic mBluetoothClassic;
-
-    BluetoothLE mBluetoothLE;
-
     //构造方法，接受DialogBuilder，初始化对话框。
     protected SearchDevicesDialog(Builder builder) {
         super(builder);
@@ -55,9 +55,6 @@ public class SearchDevicesDialog extends MaterialDialog {
 
         //初始化Views，获取到相应的蓝牙适配器
         init();
-
-        //开始搜索
-        searchStart();
 
         //注册EventBus
         EventBus.getDefault().register(this);
@@ -72,55 +69,17 @@ public class SearchDevicesDialog extends MaterialDialog {
 
         @Override
         public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-            connectDevice(position);
+            DeviceBean bean = BluetoothClassic.getInstance().getDeviceBeans().get(position);
+            BluetoothClassic.getInstance().startConnect(bean);
+
             Message message = new Message();
             message.what = Constants.BT_CONNECT_START;
             EventBus.getDefault().post(new MessageEvent(message));
+
+            BluetoothClassic.getInstance().stopDiscovery();
+
             dismiss();
         }
-    }
-
-    /**
-     * 搜索文本框监听器。
-     * 当用户点击搜索文本框再次进行搜索时，做出相应动作。
-     * */
-    private class searchListener implements View.OnClickListener{
-
-        @Override
-        public void onClick(View v) {
-            //搜索开始
-            searchStart();
-        }
-    }
-
-    //开始搜索的方法
-    private void searchStart(){
-        //清除当前ListView中的所有内容
-        arrayAdapter.clear();
-
-        //使旋转进度条开始旋转，标识搜索正在进行中
-        progressWheel.spin();
-
-        //将搜索文本框的文字内容设为正在搜索状态
-        searchTextView.setText("正在搜索蓝牙设备...");
-
-        //设置搜索文本框为不可点击
-        searchTextView.setClickable(false);
-
-        scanDevices();
-
-    }
-
-    //搜索结束的方法
-    private void searchFinished(){
-        //使旋转进度条消失，标识当前不在搜索过程中
-        progressWheel.stopSpinning();
-
-        //设置搜索文本框为在进行一次搜索的标识
-        searchTextView.setText("再来一次");
-
-        //为搜索文本框设置监听器
-        searchTextView.setOnClickListener(new searchListener());
     }
 
     //初始化操作的方法
@@ -139,70 +98,54 @@ public class SearchDevicesDialog extends MaterialDialog {
         //为ListView的items设置监听
         listView.setOnItemClickListener(new DeviceOnClickListener());
 
-        if (Constants.IS_BLE_STATE){
-            mBluetoothLE = BluetoothLE.getInstance(getContext());
-        }else {
-            mBluetoothClassic = BluetoothClassic.getInstance(getContext());
-        }
+        //start discovery
+        BluetoothClassic.getInstance().startDiscovery();
     }
 
     @Subscribe
     public void handleEvent(MessageEvent event){
         Message message = event.message;
         switch (message.what){
-            case Constants.SCAN_START:{
-                //开始搜索
-                searchStart();
-                break;
-            }
-            case Constants.SCAN_DEVICE_FOUND:{
-                //找到蓝牙设备，更新List
-                String devicesInfo = message.obj.toString();
-                arrayAdapter.add(devicesInfo);
-                arrayAdapter.notifyDataSetChanged();
-                break;
-            }
             case Constants.SCAN_DEVICES_FINISHED:{
-                //搜索动作完成，
-                searchFinished();
+                //discover finished
+                progressWheel.stopSpinning();
+                searchTextView.setText("再来一次");
+                searchTextView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        searchTextView.setText("正在搜索蓝牙设备");
+                        progressWheel.spin();
+                        arrayAdapter.clear();
+                        arrayAdapter.notifyDataSetChanged();
+
+                        BluetoothClassic.getInstance().startDiscovery();
+                    }
+                });
                 break;
             }
-            case Constants.CONNECT_STATE_CHANGED:{
-                //连接设备成功
+
+            case Constants.SCAN_DEVICE_FOUND:{
+                //更新ListView
+                ArrayList<DeviceBean> beans = BluetoothClassic.getInstance().getDeviceBeans();
+                arrayAdapter.clear();
+                for (int i = 0;i < beans.size();i++){
+                    DeviceBean deviceBean = beans.get(i);
+                    BluetoothDevice device = deviceBean.getBluetoothDevice();
+                    String name = device.getName();
+                    String mac = device.getAddress();
+                    String deviceInfo = name + "\n" + mac;
+                    arrayAdapter.add(deviceInfo);
+                }
+                arrayAdapter.notifyDataSetChanged();
+
                 break;
             }
         }
     }
 
-    //对话框从窗口剥离的回调方法，在这里进行善后工作
     @Override
-    public void onDetachedFromWindow() {
-        super.onDetachedFromWindow();
+    protected void onStop() {
+        super.onStop();
         EventBus.getDefault().unregister(this);
-        if (!Constants.IS_BLE_STATE){
-            unRegisterBroadcastReceiver();
-        }
-    }
-
-    public void scanDevices(){
-        if (Constants.IS_BLE_STATE){
-            mBluetoothLE.scanLE(true);
-        }else {
-            Log.e(TAG,"对话框的scanClassic被执行到");
-            mBluetoothClassic.scanClassic();
-            mBluetoothClassic.registerBroadcast();
-        }
-    }
-
-    public void connectDevice(int index){
-        if (Constants.IS_BLE_STATE){
-            mBluetoothLE.connect(index);
-        }else {
-            mBluetoothClassic.connectDevice(index);
-        }
-    }
-
-    public void unRegisterBroadcastReceiver(){
-        mBluetoothClassic.unRegisterBroadcastReceiver();
     }
 }

@@ -5,12 +5,16 @@ import android.app.Dialog;
 import android.app.Fragment;
 import android.app.FragmentTransaction;
 import android.bluetooth.BluetoothAdapter;
+import android.bluetooth.BluetoothDevice;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Handler;
+import android.os.IBinder;
 import android.os.Message;
 import android.provider.Settings;
 import android.support.annotation.Nullable;
@@ -72,51 +76,123 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
 
     BluetoothAdapter bluetoothAdapter;
 
-    BluetoothClassic mBluetoothClassic;
-
-    BluetoothLE mBluetoothLE;
-
     ResultFragment resultFragment;
 
     ProgressDialog progressDialog;
 
-    private int packagesSent;
-    private int packagesExpected;
-    private int packagesUnexpected;
+    SearchDevicesDialog searchDevicesDialog;
 
     Dialog pairAlertDialog;
+
+    private int packagesSentCount;
+    private int packagesBackSuccess;
+    private int packagesBackFail;
+    private int packagesNotBack;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        //初始化Activity
+        Log.e(TAG,"Activity onCreate()");
+
+        //initialize Activity
         init();
 
-        resultFragment = new ResultFragment();
-
-        EventBus.getDefault().register(this);
-
-        //获取到本设备的蓝牙适配器
+        //get BluetoothAdapter
         bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-        //判断当前设备是否支持蓝牙功能
+        //if current device support Bluetooth
         if (bluetoothAdapter == null){
-            //当前设备不支持蓝牙功能，吐司提示退出当前app
+            //does not support Bluetooth,toast to inform
             Toast.makeText(this, "丫的设备并不支持蓝牙啊喂", Toast.LENGTH_SHORT).show();
 
-            //app自焚
+            //app finish
             finish();
         }
 
-        //判断蓝牙是否打开，未打开则弹出提示框提醒用户打开蓝牙
+        //pop an dialog to the user to enable bluetooth
         if (!bluetoothAdapter.isEnabled()){
             Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
             startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
         }
 
+        //set showLog switch to true
         showLog.setChecked(true);
+
+        //start Bluetooth service
+        Intent intent = new Intent(this,BluetoothService.class);
+        bindService(intent,serviceConnection,BIND_AUTO_CREATE);
+    }
+
+    @Override
+    protected void onPause() {
+        Log.e(TAG,"onPause()");
+        super.onPause();
+    }
+
+    @Override
+    protected void onStart() {
+        Log.e(TAG,"onStart()");
+        //register EventBus
+        EventBus.getDefault().register(this);
+        if (BluetoothClassic.getInstance().isConnected()){
+            update4ConnectSuccess();
+        }else {
+            blueToothName.setText("未连接");
+        }
+        super.onStart();
+    }
+
+    public void update4ConnectSuccess(){
+        progressDialog.dismiss();
+        for (int i = 0;i < BluetoothClassic.getInstance().getDeviceBeans().size();i++){
+            DeviceBean deviceBean = BluetoothClassic.getInstance().getDeviceBeans().get(i);
+            if (deviceBean.connected){
+                BluetoothDevice bluetoothDevice = deviceBean.getBluetoothDevice();
+                String name = bluetoothDevice.getName();
+                blueToothName.setText(name);
+                return;
+            }
+        }
+    }
+
+    public void update4ConnectCancel(){
+        blueToothName.setText("未连接");
+        Message message = new Message();
+        message.what = Constants.RESET_DATA_AND_LOGS;
+        EventBus.getDefault().post(new MessageEvent(message));
+    }
+
+    public void resetData(){
+        BluetoothClassic.getInstance().resetData();
+        packagesSentCount = 0;
+        packagesBackSuccess = 0;
+        packagesBackFail = 0;
+        packagesNotBack = 0;
+
+        dataSentCounts.setText("0");
+        dataSentSuccessCounts.setText("0");
+        dataSentWrongCounts.setText("0");
+        dataNotBackCounts.setText("0");
+    }
+
+    private ServiceConnection serviceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName name, IBinder service) {
+
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName name) {
+
+        }
+    };
+
+    @Override
+    protected void onDestroy() {
+        unbindService(serviceConnection);
+        super.onDestroy();
     }
 
     //接收系统打开蓝牙的结果
@@ -141,87 +217,110 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
     public void onClick(View v) {
         switch (v.getId()){
             case R.id.button_connect_classic:{
-                if (bluetoothAdapter.isEnabled()){
-                    if (Constants.CONNECT_STATE){
-                        Snackbar.make(v,"请先断开连接",Snackbar.LENGTH_SHORT).show();
-                    }else {
-                        mBluetoothClassic = BluetoothClassic.getInstance(this);
-                        Constants.IS_BLE_STATE = false;
-                        //当搜索按钮被点击时，弹出搜索对话框进行搜索和连接操作
-                        SearchDevicesDialog dialog = new SearchDevicesDialog(new MaterialDialog.Builder(this).customView(R.layout.search_dialog, false));
-
-                        //显示对话框
-                        dialog.show();
-                    }
-                }else {
-                    Snackbar.make(v,"请先打开蓝牙",Snackbar.LENGTH_SHORT).show();
-                    Intent enableBluetoothIntent = new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
-                    startActivityForResult(enableBluetoothIntent,Constants.REQUEST_ENABLE_BT);
-                }
-
+                MaterialDialog.Builder builder = new MaterialDialog.Builder(this);
+                builder.customView(R.layout.search_dialog,false);
+                searchDevicesDialog = new SearchDevicesDialog(builder);
+                searchDevicesDialog.show();
                 break;
             }
 
             case R.id.button_send_data_in_20:{
-                //当用户点击20ms发包时
-                if (Constants.CONNECT_STATE){
+                if (BluetoothClassic.getInstance().isConnected()){
                     Constants.shouldStopSendingData = false;
-                    sendPackages(20);
-                    Log.e(TAG,"消息已发送");
+                    BluetoothClassic.getInstance().write(20);
                 }else {
-                    Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(v,"请先建立蓝牙连接",Snackbar.LENGTH_SHORT).show();
                 }
                 break;
             }
 
             case R.id.button_send_data_in_30:{
-                if (Constants.CONNECT_STATE){
+                if (BluetoothClassic.getInstance().isConnected()){
                     Constants.shouldStopSendingData = false;
-                    sendPackages(30);
-                    Log.e(TAG,"消息已发送");
+                    BluetoothClassic.getInstance().write(30);
                 }else {
-                    Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(v,"请先建立蓝牙连接",Snackbar.LENGTH_SHORT).show();
                 }
+
                 break;
             }
 
             case R.id.button_send_data_in_50:{
-                if (Constants.CONNECT_STATE){
+                if (BluetoothClassic.getInstance().isConnected()){
                     Constants.shouldStopSendingData = false;
-                    sendPackages(50);
-                    Log.e(TAG,"消息已发送");
+                    BluetoothClassic.getInstance().write(50);
                 }else {
-                    Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(v,"请先建立蓝牙连接",Snackbar.LENGTH_SHORT).show();
                 }
+
                 break;
             }
 
             case R.id.button_stop_send_data:{
-                //当停止发包按钮被点击时，设变量为true，停止发包
-                if (Constants.CONNECT_STATE){
+                if (BluetoothClassic.getInstance().isConnected()) {
                     Constants.shouldStopSendingData = true;
-                    int packagesNotBack = packagesSent - packagesExpected - packagesUnexpected;
-                    dataNotBackCounts.setText(packagesNotBack + "");
-                }else {
-                    Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
+                }
+                else {
+                    Snackbar.make(v,"请先建立蓝牙连接",Snackbar.LENGTH_SHORT).show();
                 }
                 break;
             }
 
             case R.id.button_disconnect:{
-                //当断开连接按钮被点击时，启动断开连接流程
-                if (Constants.CONNECT_STATE){
-                    //复位各项数据
-                    resetCounts();
-                    blueToothName.setText("未连接");
+                if (BluetoothClassic.getInstance().isConnected()){
                     Constants.shouldStopSendingData = true;
-                    disconnect();
+                    BluetoothClassic.getInstance().disconnectBluetooth();
+                    update4ConnectCancel();
                 }else {
-                    Snackbar.make(v,"蓝牙未连接设备",Snackbar.LENGTH_SHORT).show();
+                    Snackbar.make(v,"请先建立蓝牙连接",Snackbar.LENGTH_SHORT).show();
+                }
+
+                break;
+            }
+        }
+    }
+
+    @Override
+    public void onCheckedChanged(final CompoundButton buttonView, boolean isChecked) {
+        switch (buttonView.getId()){
+            case R.id.switch_reset_data:{
+                //reset data
+                Message message = new Message();
+                message.what = Constants.RESET_DATA_AND_LOGS;
+                EventBus.getDefault().post(new MessageEvent(message));
+
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+                        resetData.setChecked(false);
+                    }
+                },1000);
+                break;
+            }
+
+            case R.id.switch_show_log:{
+                //show log fragment
+                if (isChecked){
+                    if (resultFragment.isAdded()){
+                        Log.e(TAG,"resultFragment已经被添加");
+                        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                        fragmentTransaction.show(resultFragment).commit();
+                    }else {
+                        Log.e(TAG,"resultFragment未被添加");
+                        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+
+                        fragmentTransaction.add(R.id.fragment_container,resultFragment).commit();
+                    }
+
+                }else {
+                    Log.e(TAG,"switch关闭,隐藏fragment");
+                    FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
+                    fragmentTransaction.hide(resultFragment).commit();
                 }
                 break;
             }
         }
+
     }
 
     @Subscribe(threadMode = ThreadMode.MAIN)
@@ -229,66 +328,60 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         Message message = event.message;
         int action = message.what;
         switch (action){
-            case  Constants.UPDATE_PACKAGES_SENT_COUNT:{
-                int packagesSent = (int) message.obj;
-                this.packagesSent = packagesSent;
-                dataSentCounts.setText(packagesSent + "");
-                break;
-            }
-            case Constants.UPDATE_PACKAGES_SENT_SUCCESSFUL:{
-                int packagesSentSuccessful = (int) message.obj;
-                this.packagesExpected = packagesSentSuccessful;
-                dataSentSuccessCounts.setText(packagesSentSuccessful + "");
-                break;
-            }
-            case Constants.UPDATE_PACKAGES_SENT_FAIL:{
-                int packagesSentFail = (int) message.obj;
-                this.packagesUnexpected = packagesSentFail;
-                dataSentWrongCounts.setText(packagesSentFail + "");
-                break;
-            }
-            case Constants.UPDATE_PACKAGES_NOT_BACK:{
-                int packagesNotBack = packagesSent - packagesExpected - packagesUnexpected;
-                dataNotBackCounts.setText(packagesNotBack + "");
-                break;
-            }
-            case Constants.UPDATE_BLUETOOTH_DEVICE_NAME_AND_COUNTS:{
-                String deviceName = (String) message.obj;
-                blueToothName.setText(deviceName);
-                break;
-            }
-            case Constants.EXCEPTION_INFO:{
-                String exceptionInfo = message.obj.toString();
-                Snackbar.make(dataNotBackCounts,"出现异常,请重新连接",Snackbar.LENGTH_SHORT).show();
-                break;
-            }
             case Constants.BT_CONNECT_START:{
-                //start progress bar spin
+                Log.e(TAG,"start connecting");
+                searchDevicesDialog.dismiss();
                 progressDialog.show();
                 break;
             }
             case Constants.BT_CONNECT_FINISHED:{
-                //dismiss spinning progress bar
-                progressDialog.dismiss();
+                Log.e(TAG,"connecting finished");
+                update4ConnectSuccess();
+                break;
             }
-            case Constants.SHOW_PAIRING_REQUEST_DIALOG:{
+            case Constants.REQUEST_PAIRING_DIALOG:{
                 if (pairAlertDialog == null) {
-                    pairAlertDialog = new AlertDialog.Builder(this).setTitle("请进入系统设置进行配对")
-                            .setPositiveButton("确定", new DialogInterface.OnClickListener() {
+                    pairAlertDialog = new AlertDialog.Builder(this).setTitle("请去系统设置配对蓝牙")
+                            .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
                                     startActivity(new Intent(Settings.ACTION_BLUETOOTH_SETTINGS));
                                 }
                             })
-                            .setNegativeButton("取消", new DialogInterface.OnClickListener() {
+                            .setNegativeButton("Cancel", new DialogInterface.OnClickListener() {
                                 @Override
                                 public void onClick(DialogInterface dialog, int which) {
-
+                                    Log.e(TAG,"点击取消,消灭动画");
                                 }
                             }).show();
                 } else {
                     pairAlertDialog.show();
                 }
+                break;
+            }
+            case Constants.UPDATE_PACKAGES_SENT_COUNT:{
+                packagesSentCount = (int) message.obj;
+                dataSentCounts.setText(packagesSentCount + "");
+                break;
+            }
+            case Constants.UPDATE_PACKAGES_SENT_SUCCESSFUL:{
+                packagesBackSuccess = (int) message.obj;
+                dataSentSuccessCounts.setText(packagesBackSuccess + "");
+                break;
+            }
+            case Constants.UPDATE_PACKAGES_SENT_FAIL:{
+                packagesBackFail = (int) message.obj;
+                dataSentWrongCounts.setText(packagesBackFail + "");
+                break;
+            }
+            case Constants.UPDATE_PACKAGES_NOT_BACK:{
+                packagesNotBack = packagesSentCount - packagesBackSuccess - packagesBackFail;
+                dataNotBackCounts.setText(packagesNotBack + "");
+                break;
+            }
+            case Constants.RESET_DATA_AND_LOGS:{
+                resetData();
+                break;
             }
         }
     }
@@ -323,79 +416,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         showLog.setOnCheckedChangeListener(this);
 
         progressDialog = new ProgressDialog(this);
-    }
-
-    public void sendPackages(int frequency){
-        Constants.shouldStopSendingData = false;
-        mBluetoothClassic.sendPackages(frequency);
-    }
-
-    public void resetCounts(){
-        dataSentCounts.setText("0");
-        dataSentSuccessCounts.setText("0");
-        dataSentWrongCounts.setText("0");
-        dataNotBackCounts.setText("0");
-        mBluetoothClassic.resetCounts();
-
-        Message message = new Message();
-        message.what = Constants.RESET_FRAGMENT_LOGS;
-        EventBus.getDefault().post(new MessageEvent(message));
-    }
-
-    public void disconnect(){
-        if (Constants.IS_BLE_STATE){
-            mBluetoothLE.disconnect();
-        }else {
-            mBluetoothClassic.disconnect();
-        }
+        resultFragment = new ResultFragment();
     }
 
     @Override
     protected void onStop() {
         EventBus.getDefault().unregister(this);
         super.onStop();
-    }
-
-    @Override
-    public void onCheckedChanged(final CompoundButton buttonView, boolean isChecked) {
-        switch (buttonView.getId()){
-            case R.id.switch_reset_data:{
-                //reset data
-                if (isChecked){
-                    resetCounts();
-                    new Handler().postDelayed(new Runnable() {
-                        @Override
-                        public void run() {
-                            buttonView.setChecked(false);
-                        }
-                    },500);
-                }
-                break;
-            }
-
-            case R.id.switch_show_log:{
-                //show log fragment
-                if (isChecked){
-                    if (resultFragment.isAdded()){
-                        Log.e(TAG,"resultFragment已经被添加");
-                        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
-                        fragmentTransaction.show(resultFragment).commit();
-                    }else {
-                        Log.e(TAG,"resultFragment未被添加");
-                        FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
-
-                        fragmentTransaction.add(R.id.fragment_container,resultFragment).commit();
-                    }
-
-                }else {
-                    Log.e(TAG,"switch关闭,隐藏fragment");
-                    FragmentTransaction fragmentTransaction = getFragmentManager().beginTransaction();
-                    fragmentTransaction.hide(resultFragment).commit();
-                }
-                break;
-            }
-        }
-
     }
 
     public static class ResultFragment extends Fragment{
@@ -466,13 +493,13 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         @Subscribe(threadMode = ThreadMode.MAIN)
         public void handleMessage(MessageEvent event){
             switch (event.message.what){
-                case Constants.OK_DATA_SET_CHANGED:{
-                    String result = event.message.getData().getString("result");
-                    results.add(result);
+                case Constants.UPDATE_LOGS:{
+                    String log = event.message.getData().getString("result");
+                    results.add(log);
                     resultListAdapter.notifyDataSetChanged();
                     break;
                 }
-                case Constants.RESET_FRAGMENT_LOGS:{
+                case Constants.RESET_DATA_AND_LOGS:{
                     results.clear();
                     resultListAdapter.notifyDataSetChanged();
                     break;

@@ -1,19 +1,12 @@
 package com.example.make201512.bluetoothtester;
 
-import android.app.AlertDialog;
-import android.app.Dialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
-import android.content.BroadcastReceiver;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Message;
-import android.provider.Settings;
+import android.text.TextUtils;
 import android.util.Log;
 
 import org.greenrobot.eventbus.EventBus;
@@ -21,12 +14,8 @@ import org.greenrobot.eventbus.EventBus;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-import java.lang.reflect.Method;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
-
-import javax.security.auth.login.LoginException;
+import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Created by Tom on 2016/4/28.
@@ -36,17 +25,7 @@ public class BluetoothClassic {
 
     private static final String TAG = BluetoothClassic.class.getSimpleName();
 
-    BluetoothAdapter mBluetoothAdapter;
-
-    Context mContext;
-
-    private int deviceIndex = 0;
-
-    private Map<Integer,BluetoothDevice> devices;
-
-    private BluetoothDevice device;
-
-    private ConnectedThread connectedThread;
+    private static final UUID MY_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");//UUID.fromString("8ce255c0-200a-11e0-ac64-0800200c9a66");
 
     private BluetoothSocket socket;
 
@@ -56,364 +35,319 @@ public class BluetoothClassic {
 
     private int packagesSentSuccessful;
 
-    private int packagesNotBack;
-
     private static BluetoothClassic mBluetoothClassic = null;
 
-    private BluetoothClassic(final Context context){
-        mContext = context;
+    private ArrayList<DeviceBean> deviceBeans = new ArrayList<DeviceBean>(); //搜索到的设备List
 
-        mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+    private ConnectThread connectThread;
+    private ConnectedThread connectedThread;
 
-        devices = new HashMap<>();
+    private InputStream mmInStream;
+    private OutputStream mmOutStream;
 
-        registerBroadcast();
-    }
+    /*---------------------单例------------------------*/
+    private static BluetoothClassic instance;
 
-    public static BluetoothClassic getInstance(Context context){
-        if (mBluetoothClassic == null){
-            mBluetoothClassic = new BluetoothClassic(context);
-        }
-        return mBluetoothClassic;
-    }
-
-    public void scanClassic(){
-        deviceIndex = 0;
-        mBluetoothAdapter.cancelDiscovery();
-
-        mBluetoothAdapter.startDiscovery();
-        Log.e(TAG,"开始搜索被执行");
-    }
-
-    public void connectDevice(int index){
-        mBluetoothAdapter.cancelDiscovery();
-        Message message = new Message();
-        message.what = Constants.SCAN_DEVICES_FINISHED;
-        EventBus.getDefault().post(new MessageEvent(message));
-
-        BluetoothDevice selectedDevice = devices.get(index);
-        device = selectedDevice;
-
-        message.what = Constants.UPDATE_BLUETOOTH_DEVICE_NAME_AND_COUNTS;
-        message.obj = selectedDevice.getName();
-        EventBus.getDefault().post(new MessageEvent(message));
-
-        new ConnectThread(selectedDevice).start();
-        Log.e(TAG,"搜索线程已创建");
-
-    }
-
-    public void sendPackages(int frequency){
-//        if (connectedThread != null){
-//            connectedThread.interrupt();
-//            connectedThread = null;
-//        }
-//        connectedThread = new ConnectedThread(socket);
-
-//        connectedThread.start();
-
-        if (connectedThread == null){
-            Log.e(TAG,"connectedThread为空");
-        }
-        connectedThread.write(frequency);
-        Log.e(TAG,"sendPackages被执行");
-    }
-
-    public void resetCounts(){
-        packagesSent = 0;
-        packagesSentSuccessful = 0;
-        packagesSentFail = 0;
-        packagesNotBack = 0;
-    }
-
-    public void disconnect(){
-        if (connectedThread != null){
-            connectedThread.cancel();
-        }
-        connectedThread = null;
-    }
-
-    public void registerBroadcast(){
-        //创建各种IntentFilter并注册广播接收器来监听蓝牙状态的各种变化
-        IntentFilter intentFilter = new IntentFilter();
-        intentFilter.addAction(BluetoothDevice.ACTION_FOUND);
-        intentFilter.addAction(BluetoothDevice.ACTION_BOND_STATE_CHANGED);
-        intentFilter.addAction(BluetoothDevice.ACTION_ACL_CONNECTED);
-        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_STARTED);
-        intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED);
-        intentFilter.addAction(BluetoothAdapter.ACTION_DISCOVERY_FINISHED);
-        intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED);
-
-        mContext.registerReceiver(mBroadcastReceiver,intentFilter);
-    }
-
-    private BroadcastReceiver mBroadcastReceiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            String action = intent.getAction();
-
-            switch (action){
-                case BluetoothAdapter.ACTION_DISCOVERY_STARTED:{
-                    Log.e(TAG,"搜索开始广播");
-                    break;
-                }
-                case BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED:{
-
-                    Log.e(TAG,"连接状态改变广播" + mBluetoothAdapter.getState());
-                    break;
-                }
-                case BluetoothDevice.ACTION_ACL_CONNECTED:{
-                    Log.e(TAG,"已连接诶广播");
-                    Message message = new Message();
-                    message.what = Constants.CONNECT_STATE_CHANGED;
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    break;
-                }
-                case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:{
-                    Log.e(TAG,"搜索结束广播");
-                    Message message = new Message();
-                    message.what = Constants.SCAN_DEVICES_FINISHED;
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    break;
-                }
-                case BluetoothDevice.ACTION_FOUND:{
-                    Log.e(TAG,"接收到设备找到广播");
-                    //获取到当前搜索到的蓝牙设备
-                    BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
-
-                    String deviceName = device.getName();
-                    String deviceAddress = device.getAddress();
-
-                    if (deviceName == null){
-                        deviceName = "无名";
-                    }
-
-                    //将获取到的蓝牙设备的名称和MAC地址添加到ListView中显示
-                    String deviceInfo = deviceName + "\n" + deviceAddress;
-
-                    if (!devices.containsValue(deviceInfo)) {
-                        Log.e(TAG,"搜索到设备" + deviceIndex +" ，添加到列表" + deviceInfo);
-
-                        //将获取到的设备按角标顺序存入Map集合中
-                        devices.put(deviceIndex,device);
-
-                        Message message = new Message();
-                        message.what = Constants.SCAN_DEVICE_FOUND;
-                        message.obj = deviceInfo;
-                        EventBus.getDefault().post(new MessageEvent(message));
-
-                        //角标自增
-                        deviceIndex++;
-                        Log.e(TAG,"蓝牙设备数量为：" + deviceIndex);
-                        Constants.CURRENT_DEVICES_COUNT = deviceIndex;
-                    }
-                    break;
-                }
-                case BluetoothDevice.ACTION_BOND_STATE_CHANGED:{
-                    BluetoothDevice device = devices.get(deviceIndex);
-                    if (device.getBondState() == BluetoothDevice.BOND_BONDED){
-                        new ConnectThread(device).start();
-                        Log.e(TAG,"开始连接设备");
-                    }
-
-                    Log.e(TAG,"设备配对状态改变");
-                    break;
+    public static BluetoothClassic getInstance() {
+        if (instance == null) {
+            synchronized (BluetoothClassic.class) {
+                if (instance == null) {
+                    instance = new BluetoothClassic();
                 }
             }
         }
-    };
+        return instance;
+    }
 
-    /**
-     * 连接到蓝牙设备的线程。
-     * */
-    private class ConnectThread extends Thread{
+    private BluetoothClassic() { }
 
-        private final BluetoothDevice mDevice;
-        private final BluetoothSocket mSocket;
-        private int retryTime;
-        private String deviceName;
-
-        //构造方法，接受希望连接到的蓝牙设备
-        public ConnectThread(BluetoothDevice bluetoothDevice){
-            retryTime = 0;
-
-            //接收构造收到的蓝牙设备
-            mDevice = bluetoothDevice;
-
-            //获取该蓝牙设备的名称
-            deviceName = mDevice.getName();
-
-            Log.e(TAG,"ConnectThread设备名称为:" + deviceName);
-
-            //考虑设备蓝牙名称为空的情况，避免空指针
-            if (deviceName == null){
-                deviceName = "未知设备";
-            }
-
-            //连接到Makeblock的蓝牙模块需要设置PIN码，三号坑。
-            setBluetoothPairingPin(mDevice);
-
-            //因为当前Socket为final，所以创建临时Socket存储
-            BluetoothSocket tmpSocket = null;
-
-            try {
-                //使用UUID从服务端蓝牙设备获取到Socket
-                tmpSocket = mDevice.createRfcommSocketToServiceRecord(Constants.MY_UUID);
-                Log.e(TAG,"临时Socket获取成功");
-            } catch (IOException e) {
-                e.printStackTrace();
-
+    public void onReceive(Intent intent){
+        String action = intent.getAction();
+        switch (action) {
+            case BluetoothAdapter.ACTION_DISCOVERY_STARTED:
+                Log.e(TAG, "搜索开始");
                 Message message = new Message();
-                message.what = Constants.EXCEPTION_INFO;
-                message.obj = e.getMessage();
-
-                Log.e(TAG,"不能获取到BluetoothSocket");
-            }
-
-            //赋值给本地的Socket
-            mSocket = tmpSocket;
-            Log.e(TAG,"mSocket赋值成功");
-        }
-
-        @Override
-        public void run() {
-            Log.e(TAG,"ConnectThread start running.");
-            retryTime++;
-            if (!connect()){
-                retryTime++;
-                if (!connect()){
-                    retryTime++;
-                    connect();
+                message.what = Constants.BT_START_DISCOVERY;
+                EventBus.getDefault().post(new MessageEvent(message));
+                break;
+            case BluetoothAdapter.ACTION_DISCOVERY_FINISHED:
+                Log.e(TAG, "搜索结束");
+                Message message1 = new Message();
+                message1.what = Constants.SCAN_DEVICES_FINISHED;
+                EventBus.getDefault().post(new MessageEvent(message1));
+                break;
+            case BluetoothDevice.ACTION_BOND_STATE_CHANGED: {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+                switch (device.getBondState()) {
+                    case BluetoothDevice.BOND_BONDING:
+                        Log.e(TAG, "配对中......");
+                        break;
+                    case BluetoothDevice.BOND_BONDED:
+                        Log.e(TAG, "配对成功  开始连接");
+                        startConnect(new DeviceBean(device));//连接设备
+                        break;
+                    case BluetoothDevice.BOND_NONE:
+                        Log.e(TAG, "配对取消");
                 }
             }
+            break;
+            case BluetoothDevice.ACTION_FOUND: {
+                BluetoothDevice device = intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE);
+
+                DeviceBean bean = new DeviceBean(device);
+                if (device.getBondState() != BluetoothDevice.BOND_BONDED) {
+                    Log.e(TAG, "添加已配对蓝牙:" + device.getName() + " " + device.getAddress());
+                } else {
+                    Log.e(TAG, "添加未配对蓝牙:" + device.getName() + " " + device.getAddress());
+                }
+                getDeviceBeans().add(bean);
+                Message message2 = new Message();
+                message2.what = Constants.SCAN_DEVICE_FOUND;
+                EventBus.getDefault().post(new MessageEvent(message2));
+                Log.e(TAG, "*************************************************************");
+            }
+            break;
+            case BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED:{
+                Log.e(TAG,"ACTION_CONNECTION_STATE_CHANGED" + BluetoothAdapter.STATE_CONNECTED);
+            }
+            break;
+        }
+    }
+
+    public void connectBluetooth(){
+
+    }
+
+    //主动断开
+    public void disconnectBluetooth() {
+        if (socket == null) {
+            Log.e(TAG, "socket已经断开");
+//            update4BluetoothDisconnected();
+            return;
+        }
+        try {
+            mmOutStream.close();
+            mmInStream.close();
+            socket.close();
+        } catch (Exception e) {
+            Log.e(TAG, "断开蓝牙连接异常");
+            e.printStackTrace();
+            return;
+        }
+        mmOutStream = null;
+        mmInStream = null;
+        socket = null;
+
+        Log.e(TAG, "断开蓝牙连接成功");
+    }
+
+    //蓝牙连接:开启ConnectThread线程连接
+    public void startConnect(DeviceBean deviceBean) {
+        if (connectThread != null && connectThread.isRunning) {
+            Log.e(TAG, "connectThread 正在运行中");
+        } else {
+            //instance不能为null，必须先初始化
+            connectThread = instance.new ConnectThread(deviceBean.getBluetoothDevice());
+            connectThread.start();
+        }
+    }
+
+    /*---------------------蓝牙的主动扫描，连接，断开------------------------*/
+    private static int discoveryTimes = 0;
+
+    public void stopDiscovery() {
+        if (BluetoothAdapter.getDefaultAdapter() == null) {
+            return;
+        }
+        BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+    }
+
+    public void startDiscovery() {
+        Log.e(TAG, "******startDiscovery******");
+        if (BluetoothAdapter.getDefaultAdapter() == null) {
+            Log.e(TAG, "此设备不支持蓝牙 return");
+            return;
         }
 
-        public boolean connect(){
-            Log.e(TAG,"Retry Times:" + retryTime);
-            //判断设备是否已配对（绑定），如果已配对，则直接进行连接
-            if (mDevice.getBondState() == BluetoothDevice.BOND_BONDED){
-                Log.e(TAG,"Socket开始连接");
+        if (!BluetoothAdapter.getDefaultAdapter().isEnabled()) {
+            Message message = new Message();
+            message.what = Constants.REQUEST_ENABLE_BT;
+            EventBus.getDefault().post(new MessageEvent(message));
+            return;
+        }
+
+        if (BluetoothAdapter.getDefaultAdapter().isDiscovering()){
+            BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+        }
+
+        while (!BluetoothAdapter.getDefaultAdapter().startDiscovery()) {
+            BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+            if (discoveryTimes > 3) {
+                Log.e(TAG, "startDiscovery failed 3次，发送msg:BLUETOOTH_STATE_DISCOVERY_FAILED");
+                Message message = new Message();
+                message.what = Constants.DISCOVERY_FAILED;
+                EventBus.getDefault().post(new MessageEvent(message));
+                discoveryTimes = 0;
+                return;
+            }
+            discoveryTimes++;
+            Log.e(TAG, "startDiscovery failed");
+            try {
+                Thread.sleep(200);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        Log.e(TAG, "startDiscovery succeed");
+        discoveryTimes = 0;
+        //清空未连接的蓝牙
+        if (isConnected()) {
+            int count = getDeviceBeans().size();
+            for (int i = 0; i < count; i++) {
+                DeviceBean bean = getDeviceBeans().get(i);
+                if (!bean.connected) {
+                    getDeviceBeans().remove(i);
+                    i--;
+                    count--;
+                }
+            }
+        } else {
+            getDeviceBeans().clear();
+        }
+    }
+
+    public Boolean isConnected() {
+        for (int i = 0; i < deviceBeans.size(); i++) {
+            DeviceBean bean = deviceBeans.get(i);
+            if (bean.connected) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /*---------------------get/set 方法------------------------*/
+    public ArrayList<DeviceBean> getDeviceBeans() {
+        return deviceBeans;
+    }
+
+    //蓝牙连接子线程
+    private class ConnectThread extends Thread {
+        private BluetoothDevice bluetoothDevice;
+        private Boolean isRunning;
+        private int retryTime;
+
+        public ConnectThread(BluetoothDevice bluetoothDevice) {
+            super();
+            this.bluetoothDevice = bluetoothDevice;
+            this.isRunning = false;
+            retryTime = 0;
+        }
+
+        public void run() {
+            Log.e(TAG, "connectThread start run");
+            this.isRunning = true;
+            //1.停止搜索
+            if (BluetoothAdapter.getDefaultAdapter().isDiscovering()) {
+                BluetoothAdapter.getDefaultAdapter().cancelDiscovery();
+            }
+
+            retryTime++;
+            if (!connect()) {
+                retryTime++;
+                connect();
+                retryTime = 0;
+            }
+            this.isRunning = false;
+        }
+
+        private Boolean connect() {
+            Log.e(TAG, "retryTime=" + retryTime);
+            if (this.bluetoothDevice.getBondState() != BluetoothDevice.BOND_BONDED) {
                 try {
-                    mSocket.connect();
+                    Log.e(TAG, "此设备没有配对  开始配对");
+                    //lyh 跳转系统设置让用户配对
+                    Message message = new Message();
+                    message.what = Constants.REQUEST_PAIRING_DIALOG;
+                    EventBus.getDefault().post(new MessageEvent(message));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+                return false;
+            } else {
+                Log.e(TAG, "此设备已经配对");
+                try {
+                    socket = bluetoothDevice.createRfcommSocketToServiceRecord(MY_UUID);
+                    socket.connect();
+
                     Constants.CONNECT_STATE = true;
-                } catch (IOException e) {
-                    Log.e(TAG,"连接异常,重试");
+                } catch (Exception e) {
+                    if (retryTime > 1) {
+                        Log.e(TAG, "连接retry");
+//                        EventBus.getDefault().post(new SearchEvent(SearchEvent.CONNECT_RETRY));
+                    } else {
+                        Log.e(TAG, "连接失败");
+//                        EventBus.getDefault().post(new SearchEvent(SearchEvent.CONNECT_FAIL));
+                    }
+                    e.printStackTrace();
+                    return false;
+                }
+                Log.e(TAG, "socket连接成功");
+
+                try {
+                    Log.e(TAG, "开始初始化:mmInStream,mmOutStream");
+                    mmInStream = socket.getInputStream();
+                    mmOutStream = socket.getOutputStream();
+
+                } catch (Exception e) {
+                    Log.e(TAG, "初始化:mmInStream,mmOutStream 异常 return");
+                    if (retryTime > 1) {
+                        Log.e(TAG, "连接retry");
+//                        EventBus.getDefault().post(new SearchEvent(SearchEvent.CONNECT_RETRY));
+                    } else {
+                        Log.e(TAG, "连接失败");
+//                        EventBus.getDefault().post(new SearchEvent(SearchEvent.CONNECT_FAIL));
+                    }
                     e.printStackTrace();
                     return false;
                 }
 
-                socket = mSocket;
-                Log.e(TAG,"Socket赋值成功已连接");
+                Log.e(TAG, "初始化:mmInStream,mmOutStream 成功");
+                update4BluetoothConnected(bluetoothDevice);
                 Message message = new Message();
                 message.what = Constants.BT_CONNECT_FINISHED;
                 EventBus.getDefault().post(new MessageEvent(message));
-
-                if (connectedThread == null){
-                    connectedThread = new ConnectedThread(socket);
-                    connectedThread.start();
-                    Log.e(TAG,"ConnectedThread线程被开启");
-                }
-
-                //如果当前蓝牙设备未配对，要手动进行配对工作。
-                //利用反射获取到配对方法（createBond）。四号坑。
-            }else {
-                Log.e(TAG,"设备未配对，进行配对操作");
-                //如果SDK版本在19以上，则直接调用系统API，19以下使用反射来进行主动配对。
-//                if (Build.VERSION.SDK_INT >= 19){
-//                    mDevice.createBond();
-//                }else {
-//                Method method;
-//                try {
-//                    method = mDevice.getClass().getMethod("createBond", (Class[]) null);
-//                    method.invoke(mDevice, (Object[]) null);
-//
-//                } catch (Exception e) {
-//                    e.printStackTrace();
-//                    Message message = new Message();
-//                    message.what = Constants.EXCEPTION_INFO;
-//                    message.obj = e.getMessage();
-//                    EventBus.getDefault().post(new MessageEvent(message));
-//                    Log.e(TAG,"绑定异常");
-//                    return false;
-//                }
-//                return false;
-
-                Message message = new Message();
-                message.what = Constants.SHOW_PAIRING_REQUEST_DIALOG;
-                EventBus.getDefault().post(new MessageEvent(message));
-            }
-            return true;
-        }
-
-        //设置PIN码的方法，来自小明在mbot中写的代码
-        public void setBluetoothPairingPin(BluetoothDevice device){
-            byte[] pinBytes = ("0000").getBytes();
-            if (Build.VERSION.SDK_INT >= 19){
-                device.setPin(pinBytes);
-                device.setPairingConfirmation(true);
-            }else {
-                try {
-                    Log.e(TAG, "Try to set the PIN");
-
-                    Method m = device.getClass().getMethod("setPin", byte[].class);
-
-                    m.invoke(device, pinBytes);
-                    Log.e(TAG, "Success to add the PIN.");
-
-                    try {
-                        device.getClass().getMethod("setPairingConfirmation", boolean.class).invoke(device, true);
-                        Log.e(TAG, "Success to setPairingConfirmation.");
-                    } catch (Exception e) {
-                        Log.e(TAG,"设置配对信息失败");
-                        Message message = new Message();
-                        message.what = Constants.EXCEPTION_INFO;
-                        message.obj = e.getMessage();
-                        EventBus.getDefault().post(new MessageEvent(message));
-                        e.printStackTrace();
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    Message message = new Message();
-                    message.what = Constants.EXCEPTION_INFO;
-                    message.obj = e.getMessage();
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    Log.e(TAG,"获取setPin方法错误");
-                }
+                return true;
             }
         }
+    }
+
+    public void update4BluetoothConnected(BluetoothDevice bluetoothDevice){
+        for (int i = 0;i < deviceBeans.size();i++){
+            DeviceBean deviceBean = deviceBeans.get(i);
+            BluetoothDevice device = deviceBean.getBluetoothDevice();
+            if (bluetoothDevice.equals(device)){
+                deviceBean.connected = true;
+            }else {
+                deviceBean.connected = false;
+            }
+        }
+        if (connectedThread == null){
+            connectedThread = instance.new ConnectedThread();
+            connectedThread.start();
+        }
+    }
+
+    public void resetData(){
+        packagesSent = 0;
+        packagesSentSuccessful = 0;
+        packagesSentFail = 0;
     }
 
     /**
      * 处理收发数据流操作的线程
      * */
     private class ConnectedThread extends Thread {
-
-        private final BluetoothSocket mSocket;
-        private final InputStream inputStream;
-        private final OutputStream outputStream;
-
-        //构造，获取到对话框回传的已连接的Socket
-        ConnectedThread(BluetoothSocket socket){
-            mSocket = socket;
-            InputStream tmpInputStream = null;
-            OutputStream tmpOutputStream = null;
-
-            try {
-                tmpInputStream = mSocket.getInputStream();
-                tmpOutputStream = mSocket.getOutputStream();
-            } catch (IOException e) {
-                Message message = new Message();
-                message.what = Constants.EXCEPTION_INFO;
-                message.obj = e.getMessage();
-                Log.e(TAG,"ConnectedThread异常信息:" + e.getMessage());
-                EventBus.getDefault().post(new MessageEvent(message));
-                e.printStackTrace();
-            }
-
-            inputStream = tmpInputStream;
-            outputStream = tmpOutputStream;
-        }
-
         @Override
         public synchronized void run() {
             Log.e(TAG,"开始处理输入输出流");
@@ -427,16 +361,13 @@ public class BluetoothClassic {
             boolean goElseIf = false;
             boolean goElse = false;
 
-            while (mSocket.isConnected()){
+//            while (mSocket.isConnected()){
                 try {
                     Log.e(TAG,"开始读取输入流");
 
                     while(true){
-                        Log.e(TAG,"进入while(true)循环");
-                        int nextByte = inputStream.read();
-                        Log.e(TAG,"阻塞读取完成");
+                        int nextByte = mmInStream.read();
                         result += Integer.toHexString(nextByte);
-                        Log.e(TAG,"当前字节为:" + nextByte);
 
                         //加入ff判断,解决丢数据后排序错乱导致统计数据错误的问题
                         if (nextByte == expectedBytes[0]){
@@ -463,11 +394,13 @@ public class BluetoothClassic {
                                 EventBus.getDefault().post(new MessageEvent(message));
 
                                 Message msg = new Message();
-                                msg.what = Constants.OK_DATA_SET_CHANGED;
+                                msg.what = Constants.UPDATE_LOGS;
                                 Bundle bundle = new Bundle();
                                 bundle.putString("result","received:<" + result + ">");
                                 msg.setData(bundle);
                                 EventBus.getDefault().post(new MessageEvent(msg));
+
+                                Log.e(TAG,"received:<" + result + ">");
 
                                 result = "";
                             }
@@ -490,11 +423,13 @@ public class BluetoothClassic {
                                 EventBus.getDefault().post(new MessageEvent(message));
 
                                 Message msg = new Message();
-                                msg.what = Constants.OK_DATA_SET_CHANGED;
+                                msg.what = Constants.UPDATE_LOGS;
                                 Bundle bundle = new Bundle();
                                 bundle.putString("result","received:<" + result + ">");
                                 msg.setData(bundle);
                                 EventBus.getDefault().post(new MessageEvent(msg));
+
+                                Log.e(TAG,"received:<" + result + ">");
 
                                 result = "";
                             }
@@ -509,11 +444,13 @@ public class BluetoothClassic {
                                 goElse = false;
 
                                 Message msg = new Message();
-                                msg.what = Constants.OK_DATA_SET_CHANGED;
+                                msg.what = Constants.UPDATE_LOGS;
                                 Bundle bundle = new Bundle();
                                 bundle.putString("result","received:<" + result + ">");
                                 msg.setData(bundle);
                                 EventBus.getDefault().post(new MessageEvent(msg));
+
+                                Log.e(TAG,"received:<" + result + ">");
 
                                 result = "";
                             }
@@ -529,74 +466,15 @@ public class BluetoothClassic {
                 } catch (IOException e) {
                     e.printStackTrace();
                     Log.e(TAG,"字节读取异常");
-                    break;
                 }
-            }
+//            }
         }
+    }
 
-        //向蓝牙模块发包的方法
-        public void write(int frequency){
-            Log.e(TAG,"ConnectedThread的write方法被执行");
-            new SendPackagesThread(outputStream,frequency).start();
-        }
-
-
-        public void cancel(){
-            Log.e(TAG,"Cancel被执行到");
-            if (inputStream != null){
-                try {
-                    inputStream.close();
-                    Log.e(TAG,"InputStream关闭成功");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Message message = new Message();
-                    message.what = Constants.EXCEPTION_INFO;
-                    message.obj = e.getMessage();
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    Log.e(TAG,"无法关闭输入流");
-                }
-            }
-            if (outputStream != null){
-                try {
-                    outputStream.close();
-                    Log.e(TAG,"OutputStream关闭成功");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Message message = new Message();
-                    message.what = Constants.EXCEPTION_INFO;
-                    message.obj = e.getMessage();
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    Log.e(TAG,"无法关闭输出流");
-                }
-            }
-            if (mSocket != null){
-                try {
-                    mSocket.close();
-                    Log.e(TAG,"mSocket关闭成功");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Message message = new Message();
-                    message.what = Constants.EXCEPTION_INFO;
-                    message.obj = e.getMessage();
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    Log.e(TAG,"无法关闭Socket");
-                }
-            }
-            if (socket != null){
-                try {
-                    socket.close();
-                    Log.e(TAG,"socket关闭成功");
-                } catch (IOException e) {
-                    e.printStackTrace();
-                    Message message = new Message();
-                    message.what = Constants.EXCEPTION_INFO;
-                    message.obj = e.getMessage();
-                    EventBus.getDefault().post(new MessageEvent(message));
-                    Log.e(TAG,"无法关闭Socket");
-                }
-            }
-            Constants.CONNECT_STATE = false;
-        }
+    //向蓝牙模块发包的方法
+    public void write(int frequency){
+        Log.e(TAG,"ConnectedThread的write方法被执行");
+        new SendPackagesThread(mmOutStream,frequency).start();
     }
 
     private class SendPackagesThread extends Thread{
@@ -623,10 +501,10 @@ public class BluetoothClassic {
                         break;
                     }
                     String string = bytesToHex(Constants.TEST_DATA_BYTE_ARRAY);
-                    Log.e(TAG,"一条消息已发送完毕" + string);
+                    Log.e(TAG,"send:<" + string + ">");
 
                     Message msg = new Message();
-                    msg.what = Constants.OK_DATA_SET_CHANGED;
+                    msg.what = Constants.UPDATE_LOGS;
                     Bundle bundle = new Bundle();
                     bundle.putString("result","send:<" + string + ">");
                     msg.setData(bundle);
@@ -672,12 +550,6 @@ public class BluetoothClassic {
                 hexChars[j * 2 + 1] = hexArray[v & 0x0F];
             }
             return new String(hexChars);
-        }
-    }
-
-    public void unRegisterBroadcastReceiver(){
-        if (mBroadcastReceiver != null){
-            mContext.unregisterReceiver(mBroadcastReceiver);
         }
     }
 }

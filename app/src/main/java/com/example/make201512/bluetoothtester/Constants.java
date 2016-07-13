@@ -19,21 +19,21 @@ public class Constants {
 
     public static final int UPDATE_PACKAGES_NOT_BACK = 3;
 
-    public static final int UPDATE_BLUETOOTH_DEVICE_NAME_AND_COUNTS = 4;
+    public static final int BT_START_DISCOVERY = 4;
 
-    public static final int SHOW_PAIRING_REQUEST_DIALOG = 5;
+    public static final int REQUEST_PAIRING_DIALOG = 5;
 
     public static final int SCAN_DEVICES_FINISHED = 6;
 
     public static final int SCAN_DEVICE_FOUND = 7;
 
-    public static final int SCAN_START = 8;
+    public static final int DISCOVERY_FAILED = 8;
 
-    public static final int CONNECT_STATE_CHANGED = 9;
+    public static final int RESET_DATA_AND_LOGS = 9;
 
     public static final int DEVICE_DISCONNECTED = 10;
 
-    public static final int OK_DATA_SET_CHANGED = 11;
+    public static final int UPDATE_LOGS = 11;
 
     public static final int RESET_FRAGMENT_LOGS = 12;
 
@@ -42,6 +42,8 @@ public class Constants {
     public static final int BT_CONNECT_START = 14;
 
     public static final int BT_CONNECT_FINISHED = 15;
+
+    public static final int DEVICE_CONNECTED = 16;
 
     public static boolean IS_BLE_STATE = false;
 
